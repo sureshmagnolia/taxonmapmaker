@@ -675,13 +675,13 @@
 
         // Tile Layers (100% Free, High Uptime, Zero API Key Required)
         const basemaps = {
-            esri_topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
-            phytotaxa: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
-            swiss: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 8 }),
-            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
+            esri_topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, crossOrigin: true }),
+            phytotaxa: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13, crossOrigin: true }),
+            swiss: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 8, crossOrigin: true }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, crossOrigin: true }),
             nordic: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }),
-            coromandel: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
-            minimal: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 })
+            coromandel: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13, crossOrigin: true }),
+            minimal: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, crossOrigin: true })
         };
 
         let currentBasemap = basemaps.phytotaxa.addTo(map);
@@ -741,7 +741,7 @@
             doubleClickZoom: false
         });
 
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}').addTo(insetMap);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { crossOrigin: true }).addTo(insetMap);
 
         // Inset Study Area Box
         const studyBox = L.rectangle([[8.0, 74.4], [14.2, 80.8]], {
@@ -1204,6 +1204,220 @@
             a.download = "TaxonMap_Specimens.csv";
             a.click();
         };
+
+        // Download 300 DPI Camera-Ready PNG
+        document.getElementById('btn-download-png').onclick = async () => {
+            const btn = document.getElementById('btn-download-png');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating 300 DPI...';
+            btn.disabled = true;
+
+            try {
+                const mapEl = document.getElementById('map');
+                
+                // Hide temporary UI elements
+                const pickBanner = document.getElementById('pick-banner');
+                const prevPickDisplay = pickBanner ? pickBanner.style.display : 'none';
+                if (pickBanner) pickBanner.style.display = 'none';
+
+                const zoomControl = document.querySelector('.leaflet-control-zoom');
+                const prevZoomDisplay = zoomControl ? zoomControl.style.display : '';
+                if (zoomControl) zoomControl.style.display = 'none';
+
+                // html2canvas capture with 3x scale (~300 DPI)
+                const canvas = await html2canvas(mapEl, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scale: 3,
+                    backgroundColor: '#dbeaf8',
+                    logging: false
+                });
+
+                // Restore UI controls
+                if (pickBanner) pickBanner.style.display = prevPickDisplay;
+                if (zoomControl) zoomControl.style.display = prevZoomDisplay;
+
+                canvas.toBlob((blob) => {
+                    const filename = `TaxonMap_Manuscript_300DPI_${Date.now()}.png`;
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 2000);
+                    } else {
+                        const dataUrl = canvas.toDataURL('image/png');
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }, 2000);
+                }, 'image/png');
+            } catch (err) {
+                console.error('PNG export failed:', err);
+                alert('PNG export error: ' + err.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        };
+
+        // Download Vector SVG (Publication Standard)
+        document.getElementById('btn-download-svg').onclick = () => {
+            const btn = document.getElementById('btn-download-svg');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating SVG...';
+            btn.disabled = true;
+
+            try {
+                const mapEl = document.getElementById('map');
+                const width = mapEl.clientWidth || 1000;
+                const height = mapEl.clientHeight || 700;
+
+                // Collect Leaflet Vector Overlays
+                const leafletSvg = document.querySelector('#map .leaflet-overlay-pane svg');
+                let pathsMarkup = '';
+                if (leafletSvg) {
+                    const clonedSvg = leafletSvg.cloneNode(true);
+                    pathsMarkup = clonedSvg.innerHTML;
+                }
+
+                // Collect Inset Map if visible
+                const insetContainer = document.getElementById('inset-map-container');
+                let insetMarkup = '';
+                if (insetContainer && insetContainer.style.display !== 'none') {
+                    const insetSvg = document.querySelector('#inset-map .leaflet-overlay-pane svg');
+                    const insetRect = insetContainer.getBoundingClientRect();
+                    const mapRect = mapEl.getBoundingClientRect();
+                    const insetX = Math.round(insetRect.left - mapRect.left);
+                    const insetY = Math.round(insetRect.top - mapRect.top);
+                    const inW = Math.round(insetRect.width);
+                    const inH = Math.round(insetRect.height);
+
+                    insetMarkup = `
+                        <g id="inset-map-group" transform="translate(${insetX}, ${insetY})">
+                            <rect width="${inW}" height="${inH}" fill="#e8f0f8" stroke="#444444" stroke-width="1.5" rx="6"/>
+                            <rect width="${inW}" height="22" fill="#ffffff" fill-opacity="0.92" rx="6 6 0 0"/>
+                            <text x="${inW / 2}" y="15" font-family="'Inter', Arial, sans-serif" font-size="10" font-weight="bold" fill="#1a1a1a" text-anchor="middle">INDIA</text>
+                            ${insetSvg ? insetSvg.innerHTML : ''}
+                        </g>
+                    `;
+                }
+
+                // Collect Specimen Markers and Callouts
+                let markersMarkup = '<g id="specimen-markers">';
+                taxa.forEach(taxon => {
+                    taxon.specimens.forEach(spec => {
+                        if (spec.lat && spec.lon) {
+                            const pt = map.latLngToContainerPoint([spec.lat, spec.lon]);
+                            if (pt.x >= -50 && pt.x <= width + 50 && pt.y >= -50 && pt.y <= height + 50) {
+                                let symbolSvg = '';
+                                if (taxon.symbol === 'star') {
+                                    symbolSvg = `<polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                } else if (taxon.symbol === 'triangle') {
+                                    symbolSvg = `<polygon points="12,3 22,21 2,21" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                } else if (taxon.symbol === 'square') {
+                                    symbolSvg = `<rect x="${Math.round(pt.x) - 9}" y="${Math.round(pt.y) - 9}" width="18" height="18" fill="${taxon.color}" stroke="#000000" stroke-width="1.5"/>`;
+                                } else if (taxon.symbol === 'diamond') {
+                                    symbolSvg = `<polygon points="12,2 22,12 12,22 2,12" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                } else {
+                                    symbolSvg = `<circle cx="${Math.round(pt.x)}" cy="${Math.round(pt.y)}" r="8" fill="${taxon.color}" stroke="#000000" stroke-width="1.5"/>`;
+                                }
+
+                                const labelText = `${taxon.name}: ${spec.label} (${spec.status})`;
+                                const boxWidth = Math.round(labelText.length * 6.5 + 12);
+                                const labelSvg = `
+                                    <g id="marker-${spec.id}">
+                                        ${symbolSvg}
+                                        <rect x="${Math.round(pt.x) + 14}" y="${Math.round(pt.y) - 11}" width="${boxWidth}" height="18" fill="#ffffff" fill-opacity="0.92" stroke="#cccccc" stroke-width="0.8" rx="3"/>
+                                        <text x="${Math.round(pt.x) + 19}" y="${Math.round(pt.y) + 2}" font-family="'Inter', Arial, sans-serif" font-size="9.5" font-weight="600" fill="#222222">${labelText}</text>
+                                    </g>
+                                `;
+                                markersMarkup += labelSvg;
+                            }
+                        }
+                    });
+                });
+                markersMarkup += '</g>';
+
+                // Scale bar markup
+                let scaleMarkup = '';
+                const scaleEl = document.querySelector('.leaflet-control-scale-line');
+                if (scaleEl) {
+                    const scaleText = scaleEl.innerText || '50 km';
+                    const scaleWidth = scaleEl.offsetWidth || 80;
+                    scaleMarkup = `
+                        <g id="scale-bar" transform="translate(20, ${height - 35})">
+                            <rect width="${scaleWidth}" height="14" fill="#ffffff" fill-opacity="0.85" stroke="#333333" stroke-width="0.8"/>
+                            <rect x="0" y="0" width="${scaleWidth / 2}" height="14" fill="#000000"/>
+                            <text x="${scaleWidth / 2}" y="-4" font-family="'Inter', Arial, sans-serif" font-size="9" font-weight="bold" fill="#000000" text-anchor="middle">${scaleText}</text>
+                        </g>
+                    `;
+                }
+
+                // Standalone Vector SVG Document
+                const fullSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" version="1.1">
+    <defs>
+        <style type="text/css">
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap');
+            text { font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
+        </style>
+    </defs>
+    
+    <!-- Oceanic Background -->
+    <rect width="${width}" height="${height}" fill="#dbeaf8"/>
+    
+    <!-- Administrative & River Vector Layers -->
+    <g id="geographic-layers">
+        ${pathsMarkup}
+    </g>
+    
+    <!-- Taxa & Specimen Markers -->
+    ${markersMarkup}
+    
+    <!-- Survey of India Inset Map -->
+    ${insetMarkup}
+    
+    <!-- Metric Scale Bar -->
+    ${scaleMarkup}
+    
+    <!-- Outer Neatline -->
+    <rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="#222222" stroke-width="2"/>
+</svg>`;
+
+                const blob = new Blob([fullSvg], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `TaxonMap_Vector_${Date.now()}.svg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }, 2000);
+            } catch (err) {
+                console.error('SVG export failed:', err);
+                alert('SVG export error: ' + err.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        };
+
 
         // Initial setup
         renderSidebar();
