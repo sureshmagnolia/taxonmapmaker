@@ -819,7 +819,7 @@
         }
 
         function formatDMS(dd, isLat = true) {
-            if (dd === undefined || dd === null || isNaN(dd)) return isLat ? '0°00'00.0"N' : '0°00'00.0"E';
+            if (dd === undefined || dd === null || isNaN(dd)) return isLat ? `0°00'00.0"N` : `0°00'00.0"E`;
             const abs = Math.abs(dd);
             const deg = Math.floor(abs);
             const minFloat = (abs - deg) * 60.0;
@@ -1171,7 +1171,7 @@
             let specDetails = [];
             taxa.forEach(t => {
                 t.specimens.forEach(s => {
-                    specDetails.push(${s.label} (°N, °E, m, ));
+                    specDetails.push(`${s.label} (${safeCoord(s.lat)}\u00b0N, ${safeCoord(s.lon)}\u00b0E, ${s.alt || 0}m, ${s.status})`);
                 });
             });
 
