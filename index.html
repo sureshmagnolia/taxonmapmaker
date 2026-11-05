@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaxonMap Pro - Taxonomy Map Studio for Indian Biota</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #1b5e20;
+            --primary-dark: #0d3811;
+            --primary-light: #4caf50;
+            --secondary: #0288d1;
+            --dark: #1e293b;
+            --gray-100: #f8fafc;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-600: #475569;
+            --gray-800: #1e293b;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--dark);
+            background-color: var(--gray-100);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: 440px;
+            min-width: 440px;
+            background: #ffffff;
+            border-right: 1px solid var(--gray-200);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            color: #c8e6c9;
+            margin-top: 2px;
+        }
+
+        .badge-soi {
+            background: #ff9800;
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-content {
+            padding: 16px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray-600);
+            margin: 18px 0 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-title:first-child {
+            margin-top: 0;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .plant-card {
+            border-left: 4px solid var(--primary);
+            position: relative;
+        }
+
+        .plant-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .plant-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--dark);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background-color: var(--gray-100);
+            border-color: var(--gray-300);
+            color: var(--dark);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--gray-200);
+        }
+
+        .btn-danger {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background-color: #fecaca;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.72rem;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 8px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 3px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 5px;
+            background-color: #ffffff;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(27, 94, 32, 0.15);
+        }
+
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+
+        .specimen-item {
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            position: relative;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 0.8rem;
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Switch toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 18px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 18px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+
+        /* Map Container */
+        #map-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #dbeaf8;
+        }
+
+        /* Inset Map Box Overlay */
+        #inset-map-container {
+            position: absolute;
+            width: 200px;
+            height: 220px;
+            background: #dbeaf8;
+            border: 2px solid #222222;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            z-index: 1000;
+            pointer-events: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .inset-top-right { top: 20px; right: 20px; }
+        .inset-top-left { top: 20px; left: 20px; }
+        .inset-bottom-right { bottom: 30px; right: 20px; }
+        .inset-bottom-left { bottom: 30px; left: 20px; }
+
+        .inset-header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3px 6px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid #444;
+            color: #000;
+        }
+
+        #inset-map {
+            flex: 1;
+            width: 100%;
+            background: #dbeaf8;
+        }
+
+        /* Elevation Colorbar Overlay */
+        #elev-colorbar {
+            position: absolute;
+            bottom: 30px;
+            right: 240px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #444444;
+            border-radius: 5px;
+            padding: 6px 10px;
+            z-index: 1000;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            font-size: 0.72rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .color-ramp {
+            width: 150px;
+            height: 10px;
+            border: 1px solid #222;
+            background: linear-gradient(to right, #a1d99b, #c7e9c0, #edf8b1, #fed976, #feb24c, #fd8d3c, #e6550d, #a63603, #4a1400);
+            margin: 4px 0;
+        }
+
+        .ramp-ticks {
+            display: flex;
+            justify-content: space-between;
+            width: 150px;
+            font-size: 0.65rem;
+            color: #333;
+        }
+
+        /* Custom SVG markers on map */
+        .svg-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* Crosshair picking mode banner */
+        #pick-banner {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffeb3b;
+            color: #000;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Floating Export & Caption Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: 12px;
+            width: 580px;
+            max-width: 90%;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.15rem;
+            color: var(--dark);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .caption-box {
+            background: var(--gray-100);
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Merriweather', serif;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #1e293b;
+            margin-bottom: 16px;
+            user-select: all;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR CONTROLS -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div>
+                <h1><i class="fa-solid fa-leaf"></i> TaxonMap Pro</h1>
+                <p>Publication Studio for Indian Taxonomy</p>
+            </div>
+            <span class="badge-soi">SOI COMPLIANT</span>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- 1. PLANTS / TAXA MANAGER -->
+            <div class="section-title">
+                <span>Study Taxa & Specimens</span>
+                <button class="btn btn-primary btn-sm" id="btn-add-plant"><i class="fa-solid fa-plus"></i> Add Plant</button>
+            </div>
+            
+            <div id="plants-container">
+                <!-- Dynamically populated plant cards -->
+            </div>
+
+            <!-- 2. MAP THEME & TOPOGRAPHY -->
+            <div class="section-title">Topographic Relief Theme</div>
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Cartographic Palette</label>
+                    <select class="form-control" id="select-theme">
+                        <option value="phytotaxa" selected>Phytotaxa Standard (Verdant to Alpine Umber)</option>
+                        <option value="nordic">Nordic Monochromatic (Grayscale for Print)</option>
+                        <option value="swiss">Swiss Alpine Shaded Relief</option>
+                        <option value="coromandel">Coromandel & Deccan Warm Earth</option>
+                        <option value="esri_topo">Esri World Topographic</option>
+                        <option value="satellite">Esri Satellite Imagery with Labels</option>
+                        <option value="minimal">Clean Minimalist Contours</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 3. LAYER TOGGLES -->
+            <div class="section-title">Layer Toggles</div>
+            <div class="card">
+                <div class="toggle-row">
+                    <span>Water Bodies & River Networks</span>
+                    <label class="switch"><input type="checkbox" id="toggle-rivers" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>Survey of India National Boundary</span>
+                    <label class="switch"><input type="checkbox" id="toggle-country" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>State / UT Boundaries (36 States)</span>
+                    <label class="switch"><input type="checkbox" id="toggle-states" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>Smooth Sri Lanka Coastline (10m)</span>
+                    <label class="switch"><input type="checkbox" id="toggle-sl" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>Mountain Ranges & Physiography</span>
+                    <label class="switch"><input type="checkbox" id="toggle-mountains" checked><span class="slider"></span></label>
+                </div>
+            </div>
+
+            <!-- 4. SCIENTIFIC ACCOUTREMENTS -->
+            <div class="section-title">Scientific Cartography</div>
+            <div class="card">
+                <div class="toggle-row">
+                    <span>Survey of India National Inset</span>
+                    <label class="switch"><input type="checkbox" id="toggle-inset" checked><span class="slider"></span></label>
+                </div>
+                <div class="form-group" style="margin-top: 6px;">
+                    <label class="form-label">Inset Position</label>
+                    <select class="form-control" id="select-inset-pos">
+                        <option value="inset-top-right" selected>Top-Right (Bay of Bengal)</option>
+                        <option value="inset-top-left">Top-Left</option>
+                        <option value="inset-bottom-right">Bottom-Right</option>
+                        <option value="inset-bottom-left">Bottom-Left (Arabian Sea)</option>
+                    </select>
+                </div>
+                <div class="toggle-row">
+                    <span>Elevation Colorbar</span>
+                    <label class="switch"><input type="checkbox" id="toggle-elev-bar" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>Metric Scale Bar & Compass</span>
+                    <label class="switch"><input type="checkbox" id="toggle-scale" checked><span class="slider"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <span>Map Legend Card</span>
+                    <label class="switch"><input type="checkbox" id="toggle-legend"><span class="slider"></span></label>
+                </div>
+            </div>
+
+            <!-- 5. EXPORT & ACTIONS -->
+            <div class="section-title">Publish & Export</div>
+            <button class="btn btn-primary btn-block" id="btn-open-export" style="padding: 10px; font-size: 0.9rem;">
+                <i class="fa-solid fa-camera"></i> Camera-Ready Manuscript Export
+            </button>
+        </div>
+    </div>
+
+    <!-- MAP CONTAINER -->
+    <div id="map-container">
+        <!-- Interactive Leaflet Map -->
+        <div id="map"></div>
+
+        <!-- Crosshair Banner when in "Pick on Map" mode -->
+        <div id="pick-banner">
+            <i class="fa-solid fa-crosshairs fa-spin"></i>
+            <span>Click anywhere on the map to place specimen waypoint</span>
+            <button class="btn btn-secondary btn-sm" id="btn-cancel-pick">Cancel</button>
+        </div>
+
+        <!-- National Inset Map of India -->
+        <div id="inset-map-container" class="inset-top-right">
+            <div class="inset-header">INDIA (Survey of India Boundary)</div>
+            <div id="inset-map"></div>
+        </div>
+
+        <!-- Elevation Colorbar Overlay -->
+        <div id="elev-colorbar">
+            <span style="font-weight: bold;">Elevation (m a.s.l.)</span>
+            <div class="color-ramp"></div>
+            <div class="ramp-ticks">
+                <span>0</span>
+                <span>500</span>
+                <span>1000</span>
+                <span>1800</span>
+                <span>2600m</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT & CAPTION MODAL -->
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-export"></i> Camera-Ready Manuscript Export</h3>
+                <button class="close-btn" id="btn-close-modal">&times;</button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 12px;">
+                Download high-resolution 300 DPI figures and auto-generated captions formatted for taxonomic journals.
+            </p>
+
+            <label class="form-label">Auto-Generated Manuscript Caption (Phytotaxa / Rheedea Style):</label>
+            <div class="caption-box" id="caption-preview">
+                <!-- Auto generated caption text -->
+            </div>
+
+            <div class="row-2" style="margin-bottom: 12px;">
+                <button class="btn btn-secondary btn-block" id="btn-copy-caption"><i class="fa-regular fa-copy"></i> Copy Caption</button>
+                <button class="btn btn-secondary btn-block" id="btn-export-csv"><i class="fa-solid fa-table"></i> Export CSV Data</button>
+            </div>
+
+            <div class="row-2">
+                <button class="btn btn-primary btn-block" id="btn-download-png"><i class="fa-solid fa-download"></i> Download 300 DPI PNG</button>
+                <button class="btn btn-primary btn-block" id="btn-download-svg"><i class="fa-solid fa-vector-square"></i> Download Vector SVG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- html2canvas for 300 DPI canvas export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        // State data structure for plants and specimens
+        let taxa = [
+            {
+                id: 1,
+                name: "Locality 1 Specimen",
+                color: "#d7191c",
+                symbol: "star",
+                specimens: [
+                    { id: 101, label: "Thanjavur", lat: 10.7870, lon: 79.1378, alt: 59, status: "Holotype" }
+                ]
+            },
+            {
+                id: 2,
+                name: "Locality 2 Specimen",
+                color: "#0055ff",
+                symbol: "triangle",
+                specimens: [
+                    { id: 201, label: "Attappadi / Palakkad", lat: 11.0679, lon: 76.5603, alt: 572, status: "Paratype" }
+                ]
+            }
+        ];
+
+        let activePickTaxonId = null;
+        let activePickSpecimenId = null;
+
+        // Initialize Main Map
+        const map = L.map('map', {
+            center: [10.95, 77.85],
+            zoom: 8,
+            zoomControl: false,
+            attributionControl: false
+        });
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 150 }).addTo(map);
+
+        // Tile Layers
+        const basemaps = {
+            esri_topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
+            phytotaxa: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
+            swiss: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 8 }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
+            nordic: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }),
+            coromandel: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
+            minimal: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 })
+        };
+
+        let currentBasemap = basemaps.phytotaxa.addTo(map);
+
+        // Vector Layers
+        let layerCountry = null;
+        let layerStates = null;
+        let layerRivers = null;
+        let layerSriLanka = null;
+        let markersLayer = L.layerGroup().addTo(map);
+
+        // Load Vector GeoJSON Assets
+        fetch('assets/geojson/india_soi_boundary.geojson')
+            .then(res => res.json())
+            .then(data => {
+                layerCountry = L.geoJSON(data, {
+                    style: { color: '#000000', weight: 2.2, fill: false, opacity: 1.0 }
+                }).addTo(map);
+            }).catch(e => console.log('SOI boundary load skipped', e));
+
+        fetch('assets/geojson/india_states.geojson')
+            .then(res => res.json())
+            .then(data => {
+                layerStates = L.geoJSON(data, {
+                    style: { color: '#222222', weight: 1.4, fill: false, dashArray: '4, 4', opacity: 0.85 }
+                }).addTo(map);
+            }).catch(e => console.log('States load skipped', e));
+
+        fetch('assets/geojson/sri_lanka.geojson')
+            .then(res => res.json())
+            .then(data => {
+                layerSriLanka = L.geoJSON(data, {
+                    style: { color: '#444444', weight: 1.0, fillColor: '#eae6df', fillOpacity: 0.9 }
+                }).addTo(map);
+            }).catch(e => console.log('Sri Lanka load skipped', e));
+
+        fetch('assets/geojson/rivers_india.geojson')
+            .then(res => res.json())
+            .then(data => {
+                layerRivers = L.geoJSON(data, {
+                    style: { color: '#1f78b4', weight: 1.0, opacity: 0.8 }
+                }).addTo(map);
+            }).catch(e => console.log('Rivers load skipped', e));
+
+        // Initialize Inset Map of India
+        const insetMap = L.map('inset-map', {
+            center: [22.0, 82.0],
+            zoom: 3.2,
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false
+        });
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}').addTo(insetMap);
+
+        // Inset Study Area Box
+        const studyBox = L.rectangle([[8.0, 74.4], [14.2, 80.8]], {
+            color: '#b30000',
+            weight: 2,
+            fillColor: '#ff0000',
+            fillOpacity: 0.25
+        }).addTo(insetMap);
+
+        // Load SOI on Inset Map
+        fetch('assets/geojson/india_soi_boundary.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: '#000000', weight: 1.5, fill: false }
+                }).addTo(insetMap);
+            });
+
+        // DMS / DD Coordinate Parsers
+        function parseCoord(input) {
+            input = String(input).trim();
+            const num = parseFloat(input);
+            if (!isNaN(num) && String(num) === input) return num;
+
+            // DMS Match: 11°04'04.5"N
+            const match = input.match(/(\d+)[\s°]+(\d+)[\s']+([\d.]+)[\s"']*([NSEWnsew])?/);
+            if (match) {
+                const deg = parseFloat(match[1]);
+                const min = parseFloat(match[2]);
+                const sec = parseFloat(match[3]) || 0;
+                const dir = (match[4] || 'N').toUpperCase();
+                let dd = deg + min / 60.0 + sec / 3600.0;
+                if (dir === 'S' || dir === 'W') dd = -dd;
+                return dd;
+            }
+            return parseFloat(input) || 0;
+        }
+
+        function formatDMS(dd, isLat = true) {
+            const abs = Math.abs(dd);
+            const deg = Math.floor(abs);
+            const minFloat = (abs - deg) * 60.0;
+            const min = Math.floor(minFloat);
+            const sec = ((minFloat - min) * 60.0).toFixed(1);
+            const dir = isLat ? (dd >= 0 ? 'N' : 'S') : (dd >= 0 ? 'E' : 'W');
+            return `${deg}°${String(min).padStart(2, '0')}'${String(sec).padStart(4, '0')}"${dir}`;
+        }
+
+        // SVG Marker Generator
+        function createSvgIcon(color, symbol) {
+            let svgShape = '';
+            if (symbol === 'star') {
+                svgShape = '<polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" fill="' + color + '" stroke="#000" stroke-width="1.5"/>';
+            } else if (symbol === 'triangle') {
+                svgShape = '<polygon points="12,3 22,21 2,21" fill="' + color + '" stroke="#000" stroke-width="1.5"/>';
+            } else if (symbol === 'square') {
+                svgShape = '<rect x="3" y="3" width="18" height="18" fill="' + color + '" stroke="#000" stroke-width="1.5"/>';
+            } else if (symbol === 'diamond') {
+                svgShape = '<polygon points="12,2 22,12 12,22 2,12" fill="' + color + '" stroke="#000" stroke-width="1.5"/>';
+            } else {
+                svgShape = '<circle cx="12" cy="12" r="9" fill="' + color + '" stroke="#000" stroke-width="1.5"/>';
+            }
+
+            return L.divIcon({
+                className: 'svg-marker',
+                html: `<svg width="26" height="26" viewBox="0 0 24 24">${svgShape}</svg>`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+        }
+
+        // Render Taxa & Specimens in Sidebar
+        function renderSidebar() {
+            const container = document.getElementById('plants-container');
+            container.innerHTML = '';
+
+            taxa.forEach((taxon, tIndex) => {
+                const card = document.createElement('div');
+                card.className = 'card plant-card';
+                card.style.borderLeftColor = taxon.color;
+
+                let specimensHtml = '';
+                taxon.specimens.forEach((spec, sIndex) => {
+                    specimensHtml += `
+                        <div class="specimen-item" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <strong style="font-size:0.8rem;">${spec.label}</strong>
+                                <div>
+                                    <button class="btn btn-secondary btn-sm btn-pick-coord" data-taxon="${taxon.id}" data-spec="${spec.id}" title="Click on map to set coordinate"><i class="fa-solid fa-crosshairs"></i></button>
+                                    <button class="btn btn-danger btn-sm btn-del-spec" data-taxon="${taxon.id}" data-spec="${spec.id}">&times;</button>
+                                </div>
+                            </div>
+                            <div class="row-2">
+                                <input type="text" class="form-control spec-lat" value="${spec.lat.toFixed(4)}" placeholder="Latitude (DD/DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                                <input type="text" class="form-control spec-lon" value="${spec.lon.toFixed(4)}" placeholder="Longitude (DD/DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                            </div>
+                            <div class="row-2" style="margin-top:4px;">
+                                <select class="form-control spec-status" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                                    <option value="Holotype" ${spec.status==='Holotype'?'selected':''}>Holotype</option>
+                                    <option value="Isotype" ${spec.status==='Isotype'?'selected':''}>Isotype</option>
+                                    <option value="Paratype" ${spec.status==='Paratype'?'selected':''}>Paratype</option>
+                                    <option value="Syntype" ${spec.status==='Syntype'?'selected':''}>Syntype</option>
+                                    <option value="Topotype" ${spec.status==='Topotype'?'selected':''}>Topotype</option>
+                                    <option value="Voucher" ${spec.status==='Voucher'?'selected':''}>Voucher</option>
+                                </select>
+                                <input type="number" class="form-control spec-alt" value="${spec.alt}" placeholder="Alt (m)" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                            </div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="plant-header">
+                        <span class="plant-title">${taxon.name}</span>
+                        <div class="btn-group">
+                            <input type="color" class="taxon-color" value="${taxon.color}" data-taxon="${taxon.id}" style="width:28px; height:26px; border:none; cursor:pointer;">
+                            <select class="form-control taxon-symbol" data-taxon="${taxon.id}" style="width:75px; padding:2px 4px;">
+                                <option value="star" ${taxon.symbol==='star'?'selected':''}>★ Star</option>
+                                <option value="triangle" ${taxon.symbol==='triangle'?'selected':''}>▲ Tri</option>
+                                <option value="circle" ${taxon.symbol==='circle'?'selected':''}>● Circ</option>
+                                <option value="square" ${taxon.symbol==='square'?'selected':''}>■ Sqr</option>
+                                <option value="diamond" ${taxon.symbol==='diamond'?'selected':''}>◆ Diam</option>
+                            </select>
+                            <button class="btn btn-danger btn-sm btn-del-taxon" data-taxon="${taxon.id}">&times;</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="form-control taxon-name" value="${taxon.name}" placeholder="Taxon Scientific Name" data-taxon="${taxon.id}">
+                    </div>
+                    <div class="specimens-list">${specimensHtml}</div>
+                    <button class="btn btn-secondary btn-sm btn-block btn-add-spec" data-taxon="${taxon.id}" style="margin-top:6px;">
+                        <i class="fa-solid fa-location-dot"></i> Add Collection Point
+                    </button>
+                `;
+
+                container.appendChild(card);
+            });
+
+            updateMapMarkers();
+            bindEvents();
+        }
+
+        // Render Markers on Map
+        function updateMapMarkers() {
+            markersLayer.clearLayers();
+            const allCoords = [];
+
+            taxa.forEach(taxon => {
+                taxon.specimens.forEach(spec => {
+                    allCoords.push([spec.lat, spec.lon]);
+                    const icon = createSvgIcon(taxon.color, taxon.symbol);
+                    const marker = L.marker([spec.lat, spec.lon], { icon: icon, draggable: true }).addTo(markersLayer);
+
+                    const popupContent = `
+                        <div style="font-size:12px; font-family:'Inter',sans-serif; line-height:1.5;">
+                            <strong style="color:${taxon.color}; font-size:13px;">${taxon.name}</strong><br>
+                            <b>${spec.label}</b> (${spec.status})<br>
+                            ${spec.lat.toFixed(4)}°N, ${spec.lon.toFixed(4)}°E<br>
+                            DMS: ${formatDMS(spec.lat, true)}, ${formatDMS(spec.lon, false)}<br>
+                            Elevation: ~${spec.alt} m a.s.l.
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+
+                    // Update on marker drag
+                    marker.on('dragend', (e) => {
+                        const newPos = e.target.getLatLng();
+                        spec.lat = newPos.lat;
+                        spec.lon = newPos.lon;
+                        renderSidebar();
+                    });
+                });
+            });
+
+            // Update inset map bounding box
+            if (allCoords.length > 0) {
+                const bounds = L.latLngBounds(allCoords).pad(0.35);
+                studyBox.setBounds(bounds);
+            }
+        }
+
+        // Event Listeners
+        function bindEvents() {
+            // Add Plant
+            document.getElementById('btn-add-plant').onclick = () => {
+                const newId = Date.now();
+                const colors = ['#2e7d32', '#e65100', '#6a1b9a', '#c2185b', '#00838f'];
+                const nextColor = colors[taxa.length % colors.length];
+                taxa.push({
+                    id: newId,
+                    name: `New Taxon ${taxa.length + 1}`,
+                    color: nextColor,
+                    symbol: 'circle',
+                    specimens: [
+                        { id: Date.now() + 1, label: 'Collection Site', lat: 10.5, lon: 77.5, alt: 300, status: 'Voucher' }
+                    ]
+                });
+                renderSidebar();
+            };
+
+            // Delete Plant
+            document.querySelectorAll('.btn-del-taxon').forEach(btn => {
+                btn.onclick = (e) => {
+                    const id = parseInt(e.target.dataset.taxon);
+                    if (taxa.length > 1) {
+                        taxa = taxa.filter(t => t.id !== id);
+                        renderSidebar();
+                    } else {
+                        alert("Must have at least one plant!");
+                    }
+                };
+            });
+
+            // Edit Taxon Name
+            document.querySelectorAll('.taxon-name').forEach(inp => {
+                inp.onchange = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
+                    if (t) t.name = e.target.value;
+                };
+            });
+
+            // Change Color
+            document.querySelectorAll('.taxon-color').forEach(inp => {
+                inp.onchange = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
+                    if (t) { t.color = e.target.value; renderSidebar(); }
+                };
+            });
+
+            // Change Symbol
+            document.querySelectorAll('.taxon-symbol').forEach(sel => {
+                sel.onchange = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
+                    if (t) { t.symbol = e.target.value; renderSidebar(); }
+                };
+            });
+
+            // Add Specimen
+            document.querySelectorAll('.btn-add-spec').forEach(btn => {
+                btn.onclick = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.currentTarget.dataset.taxon));
+                    if (t) {
+                        t.specimens.push({
+                            id: Date.now(),
+                            label: `Locality ${t.specimens.length + 1}`,
+                            lat: 10.8,
+                            lon: 78.2,
+                            alt: 100,
+                            status: 'Paratype'
+                        });
+                        renderSidebar();
+                    }
+                };
+            });
+
+            // Delete Specimen
+            document.querySelectorAll('.btn-del-spec').forEach(btn => {
+                btn.onclick = (e) => {
+                    const tId = parseInt(e.currentTarget.dataset.taxon);
+                    const sId = parseInt(e.currentTarget.dataset.spec);
+                    const t = taxa.find(x => x.id === tId);
+                    if (t && t.specimens.length > 1) {
+                        t.specimens = t.specimens.filter(s => s.id !== sId);
+                        renderSidebar();
+                    }
+                };
+            });
+
+            // Coordinate inputs
+            document.querySelectorAll('.spec-lat').forEach(inp => {
+                inp.onchange = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
+                    const s = t ? t.specimens.find(x => x.id === parseInt(e.target.dataset.spec)) : null;
+                    if (s) { s.lat = parseCoord(e.target.value); updateMapMarkers(); }
+                };
+            });
+
+            document.querySelectorAll('.spec-lon').forEach(inp => {
+                inp.onchange = (e) => {
+                    const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
+                    const s = t ? t.specimens.find(x => x.id === parseInt(e.target.dataset.spec)) : null;
+                    if (s) { s.lon = parseCoord(e.target.value); updateMapMarkers(); }
+                };
+            });
+
+            // Pick Coordinate on Map
+            document.querySelectorAll('.btn-pick-coord').forEach(btn => {
+                btn.onclick = (e) => {
+                    activePickTaxonId = parseInt(e.currentTarget.dataset.taxon);
+                    activePickSpecimenId = parseInt(e.currentTarget.dataset.spec);
+                    document.getElementById('pick-banner').style.display = 'flex';
+                    map.getContainer().style.cursor = 'crosshair';
+                };
+            });
+        }
+
+        // Map Click for Waypoint Dropping
+        map.on('click', (e) => {
+            if (activePickTaxonId && activePickSpecimenId) {
+                const t = taxa.find(x => x.id === activePickTaxonId);
+                const s = t ? t.specimens.find(x => x.id === activePickSpecimenId) : null;
+                if (s) {
+                    s.lat = e.latlng.lat;
+                    s.lon = e.latlng.lng;
+                    activePickTaxonId = null;
+                    activePickSpecimenId = null;
+                    document.getElementById('pick-banner').style.display = 'none';
+                    map.getContainer().style.cursor = '';
+                    renderSidebar();
+                }
+            }
+        });
+
+        document.getElementById('btn-cancel-pick').onclick = () => {
+            activePickTaxonId = null;
+            activePickSpecimenId = null;
+            document.getElementById('pick-banner').style.display = 'none';
+            map.getContainer().style.cursor = '';
+        };
+
+        // Theme Switcher
+        document.getElementById('select-theme').onchange = (e) => {
+            const val = e.target.value;
+            map.removeLayer(currentBasemap);
+            if (val === 'phytotaxa') currentBasemap = basemaps.phytotaxa.addTo(map);
+            else if (val === 'nordic') currentBasemap = basemaps.nordic.addTo(map);
+            else if (val === 'swiss') currentBasemap = basemaps.swiss.addTo(map);
+            else if (val === 'coromandel') currentBasemap = basemaps.coromandel.addTo(map);
+            else if (val === 'satellite') currentBasemap = basemaps.satellite.addTo(map);
+            else if (val === 'minimal') currentBasemap = basemaps.minimal.addTo(map);
+            else currentBasemap = basemaps.esri_topo.addTo(map);
+        };
+
+        // Layer Toggles
+        document.getElementById('toggle-country').onchange = (e) => {
+            if (layerCountry) e.target.checked ? map.addLayer(layerCountry) : map.removeLayer(layerCountry);
+        };
+
+        document.getElementById('toggle-states').onchange = (e) => {
+            if (layerStates) e.target.checked ? map.addLayer(layerStates) : map.removeLayer(layerStates);
+        };
+
+        document.getElementById('toggle-rivers').onchange = (e) => {
+            if (layerRivers) e.target.checked ? map.addLayer(layerRivers) : map.removeLayer(layerRivers);
+        };
+
+        document.getElementById('toggle-sl').onchange = (e) => {
+            if (layerSriLanka) e.target.checked ? map.addLayer(layerSriLanka) : map.removeLayer(layerSriLanka);
+        };
+
+        document.getElementById('toggle-inset').onchange = (e) => {
+            document.getElementById('inset-map-container').style.display = e.target.checked ? 'flex' : 'none';
+        };
+
+        document.getElementById('select-inset-pos').onchange = (e) => {
+            const c = document.getElementById('inset-map-container');
+            c.className = e.target.value;
+        };
+
+        document.getElementById('toggle-elev-bar').onchange = (e) => {
+            document.getElementById('elev-colorbar').style.display = e.target.checked ? 'flex' : 'none';
+        };
+
+        // Export Modal & Auto-Caption Generation
+        document.getElementById('btn-open-export').onclick = () => {
+            const taxaList = taxa.map(t => `*${t.name}*`).join(', ');
+            let specDetails = [];
+            taxa.forEach(t => {
+                t.specimens.forEach(s => {
+                    specDetails.push(`${s.label} (${s.lat.toFixed(4)}°N, ${s.lon.toFixed(4)}°E, ${s.alt}m, ${s.status})`);
+                });
+            });
+
+            const caption = `FIGURE 1. Geographic distribution of ${taxaList} in India. Collection localities: ${specDetails.join('; ')}. Administrative boundaries strictly conform to official Survey of India (SOI) demarcation (including Ladakh, Jammu & Kashmir, and Arunachal Pradesh). Topographic relief derived from SRTM/GMTED digital elevation models.`;
+            document.getElementById('caption-preview').innerText = caption;
+            document.getElementById('export-modal').style.display = 'flex';
+        };
+
+        document.getElementById('btn-close-modal').onclick = () => {
+            document.getElementById('export-modal').style.display = 'none';
+        };
+
+        document.getElementById('btn-copy-caption').onclick = () => {
+            const text = document.getElementById('caption-preview').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Manuscript caption copied to clipboard!");
+        };
+
+        // Export CSV
+        document.getElementById('btn-export-csv').onclick = () => {
+            let csv = "Taxon,Locality,Latitude_DD,Longitude_DD,Latitude_DMS,Longitude_DMS,Elevation_m,Type_Status\n";
+            taxa.forEach(t => {
+                t.specimens.forEach(s => {
+                    csv += `"${t.name}","${s.label}",${s.lat},${s.lon},"${formatDMS(s.lat, true)}","${formatDMS(s.lon, false)}",${s.alt},"${s.status}"\n`;
+                });
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = "TaxonMap_Specimens.csv";
+            a.click();
+        };
+
+        // Initial setup
+        renderSidebar();
+    </script>
+</body>
+</html>

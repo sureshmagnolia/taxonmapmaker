@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.DS_Store
+Thumbs.db
+data/cache_tiles/
+data/*.npy
+data/raster_india_all.npz
+.venv/
+env/
+
+*.db
