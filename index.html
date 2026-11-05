@@ -637,24 +637,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <script>
-        // State data structure for plants and specimens
+        // State data structure for plants and specimens (Botanical Example Localities)
         let taxa = [
             {
                 id: 1,
-                name: "Locality 1 Specimen",
+                name: "Plant Species Alpha",
                 color: "#d7191c",
                 symbol: "star",
                 specimens: [
-                    { id: 101, label: "Thanjavur", lat: 10.7870, lon: 79.1378, alt: 59, status: "Holotype" }
+                    { id: 101, label: "Nilgiri Shola (Locality 1)", lat: 11.4100, lon: 76.7000, alt: 2240, status: "Holotype" }
                 ]
             },
             {
                 id: 2,
-                name: "Locality 2 Specimen",
+                name: "Plant Species Beta",
                 color: "#0055ff",
                 symbol: "triangle",
                 specimens: [
-                    { id: 201, label: "Attappadi / Palakkad", lat: 11.0679, lon: 76.5603, alt: 572, status: "Paratype" }
+                    { id: 201, label: "Shevaroy Hills (Locality 2)", lat: 11.7753, lon: 78.2093, alt: 1515, status: "Paratype" }
                 ]
             }
         ];
@@ -664,7 +664,7 @@
 
         // Initialize Main Map
         const map = L.map('map', {
-            center: [10.95, 77.85],
+            center: [11.55, 77.45],
             zoom: 8,
             zoomControl: false,
             attributionControl: false
@@ -782,7 +782,7 @@
                                .trim();
 
             // Match simple decimal degree with optional sign or N/S/E/W
-            // e.g. "10.7870", "10.7870 N", "79.1378°E", "-76.56"
+            // e.g. "11.4100", "11.4100 N", "76.7000°E", "-76.56"
             const decMatch = cleaned.match(/^([+-]?\d+(?:\.\d+)?)\s*([NSEWnsew])?$/);
             if (decMatch) {
                 let val = parseFloat(decMatch[1]);
@@ -1048,7 +1048,7 @@
                 };
             });
 
-            // Coordinate inputs (with auto-detect comma-separated paste: e.g. "10.7870, 79.1378")
+            // Coordinate inputs (with auto-detect comma-separated paste: e.g. "11.4100, 76.7000")
             document.querySelectorAll('.spec-lat').forEach(inp => {
                 inp.onchange = (e) => {
                     const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));

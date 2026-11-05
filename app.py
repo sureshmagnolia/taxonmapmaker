@@ -112,30 +112,30 @@ def shapely_to_mpl_path(geom):
 if 'taxa' not in st.session_state:
     st.session_state.taxa = [
         {
-            'name': 'Study Taxon A',
+            'name': 'Plant Species Alpha',
             'symbol': '*',
             'color': '#D7191C',
             'specimens': [
                 {
-                    'label': 'Locality 1: Thanjavur',
-                    'lat_str': '10.7870',
-                    'lon_str': '79.1378',
+                    'label': 'Nilgiri Shola (Locality 1)',
+                    'lat_str': '11.4100',
+                    'lon_str': '76.7000',
                     'status': 'Holotype',
-                    'alt_m': 59
+                    'alt_m': 2240
                 }
             ]
         },
         {
-            'name': 'Study Taxon B',
+            'name': 'Plant Species Beta',
             'symbol': '^',
             'color': '#0055FF',
             'specimens': [
                 {
-                    'label': 'Locality 2: Attappadi / Palakkad',
-                    'lat_str': '11°04\'04.5"N',
-                    'lon_str': '76°33\'36.9"E',
+                    'label': 'Shevaroy Hills (Locality 2)',
+                    'lat_str': '11°46\'31.1"N',
+                    'lon_str': '78°12\'33.5"E',
                     'status': 'Paratype',
-                    'alt_m': 572
+                    'alt_m': 1515
                 }
             ]
         }

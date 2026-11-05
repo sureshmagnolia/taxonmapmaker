@@ -26,8 +26,8 @@ For studies within the Indian subcontinent, maps **must strictly comply with off
     * ★ Star | ▲ Triangle | ● Circle | ■ Square | ◆ Diamond | ✚ Cross
   * Record specimen typification status: **Holotype**, **Isotype**, **Paratype**, **Lectotype**, **Syntype**, **Topotype**, or **Voucher**.
 * **Flexible Coordinate Input:**
-  * **Decimal Degrees:** `10.7870°N, 79.1378°E` or `10.7870, 79.1378`
-  * **Degrees Minutes Seconds (DMS):** `11°04'04.5"N 76°33'36.9"E`
+  * **Decimal Degrees:** `11.4100°N, 76.7000°E` or `11.4100, 76.7000`
+  * **Degrees Minutes Seconds (DMS):** `11°46'31.1"N 78°12'33.5"E`
   * Instant automatic conversion between DMS and Decimal Degrees.
 * **Interactive Waypoint Pin Dropper:**
   * Click directly on the interactive map to place a collection waypoint.
@@ -43,8 +43,8 @@ For studies within the Indian subcontinent, maps **must strictly comply with off
   * Toggle **Official Survey of India national boundary** (252,604-vertex precision).
   * Toggle **State / UT boundaries** (36 Indian States and UTs).
   * Toggle **Smooth Sri Lanka coastline** (10m high-resolution vector).
-  * Toggle **Western Ghats mountain landmarks** (Nilgiris, Anamalais, Palakkad Gap).
-  * Toggle **District boundaries** and highlight collection districts (e.g. Thanjavur, Palakkad).
+  * Toggle **Western Ghats mountain landmarks** (Nilgiris, Anamalais, Salem Gap).
+  * Toggle **District boundaries** and highlight collection districts (e.g. Nilgiris, Salem).
 * **Survey of India (SOI) National Inset Map:**
   * Toggle **On / Off**.
   * Customizable position: **Top-Right**, **Top-Left**, **Bottom-Right**, or **Bottom-Left**.
