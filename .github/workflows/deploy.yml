@@ -2,7 +2,7 @@ name: Deploy TaxonMap Pro to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, scr5 ]
   workflow_dispatch:
 
 permissions:

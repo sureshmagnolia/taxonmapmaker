@@ -515,7 +515,7 @@ with tab_preview:
         ax_in.text(94.5, 28.2, "ARUNACHAL\nPRADESH", fontsize=4.5, fontweight='bold', color='#222222', ha='center', zorder=7)
 
         ax_in.add_patch(Rectangle((lon_min, lat_min), lon_max - lon_min, lat_max - lat_min, facecolor='#ff0000', edgecolor='#b30000', linewidth=1.5, alpha=0.30, zorder=8))
-        ax_in.text(82.5, 36.8, "INDIA\n(Survey of India Boundary)", fontsize=7, fontweight='bold', color='#000000', ha='center', va='top', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='#444444', linewidth=0.6, alpha=0.92), zorder=11)
+        ax_in.text(82.5, 36.8, "INDIA", fontsize=7, fontweight='bold', color='#000000', ha='center', va='top', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='#444444', linewidth=0.6, alpha=0.92), zorder=11)
         ax_in.set_xlim(in_l_min, in_l_max)
         ax_in.set_ylim(in_b_min, in_b_max)
         ax_in.set_aspect('equal')

@@ -497,12 +497,12 @@
                     <label class="form-label">Cartographic Palette</label>
                     <select class="form-control" id="select-theme">
                         <option value="phytotaxa" selected>Phytotaxa Standard (Verdant to Alpine Umber)</option>
-                        <option value="nordic">Nordic Monochromatic (Grayscale for Print)</option>
+                        <option value="minimal">Clean Minimalist Light Canvas (No API Key)</option>
+                        <option value="nordic">OpenStreetMap Detailed Cartography</option>
                         <option value="swiss">Swiss Alpine Shaded Relief</option>
                         <option value="coromandel">Coromandel & Deccan Warm Earth</option>
                         <option value="esri_topo">Esri World Topographic</option>
-                        <option value="satellite">Esri Satellite Imagery with Labels</option>
-                        <option value="minimal">Clean Minimalist Contours</option>
+                        <option value="satellite">Esri Satellite Imagery</option>
                     </select>
                 </div>
             </div>
@@ -584,7 +584,7 @@
 
         <!-- National Inset Map of India -->
         <div id="inset-map-container" class="inset-top-right">
-            <div class="inset-header">INDIA (Survey of India Boundary)</div>
+            <div class="inset-header">INDIA</div>
             <div id="inset-map"></div>
         </div>
 
@@ -673,15 +673,15 @@
         L.control.zoom({ position: 'topright' }).addTo(map);
         L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 150 }).addTo(map);
 
-        // Tile Layers
+        // Tile Layers (100% Free, High Uptime, Zero API Key Required)
         const basemaps = {
             esri_topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
             phytotaxa: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
             swiss: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 8 }),
             satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }),
-            nordic: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }),
+            nordic: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }),
             coromandel: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13 }),
-            minimal: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 })
+            minimal: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 })
         };
 
         let currentBasemap = basemaps.phytotaxa.addTo(map);
