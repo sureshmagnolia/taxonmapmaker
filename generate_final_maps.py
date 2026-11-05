@@ -36,15 +36,15 @@ print("Loading high-resolution spatial datasets...")
 # India official composite SOI boundary (252,604 vertices)
 india_highres_gdf = gpd.read_file(os.path.join(data_dir, "india-composite.geojson"))
 
-# India state boundaries (clean)
-states_gdf = gpd.read_file(os.path.join(data_dir, "india_states_clean.geojson"))
-districts_gdf = gpd.read_file(os.path.join(data_dir, "india_states_soi.geojson"))
+# India state and district boundaries (silky smooth curves - zero hexagonal angularity)
+states_gdf = gpd.read_file(os.path.join(data_dir, "india_states_smooth.geojson"))
+districts_gdf = gpd.read_file(os.path.join(data_dir, "india_districts_smooth.geojson"))
 
-# 10m Land for Sri Lanka and islands (105,000+ vertices)
-land_10m_gdf = gpd.read_file(os.path.join(data_dir, "ne_10m_land.geojson"))
+# 10m Land for Sri Lanka and islands (smooth curves)
+land_10m_gdf = gpd.read_file(os.path.join(data_dir, "sri_lanka_smooth.geojson"))
 
-# 10m Rivers
-rivers_gdf = gpd.read_file(os.path.join(data_dir, "ne_10m_rivers.geojson"))
+# Ultra-smooth Rivers
+rivers_gdf = gpd.read_file(os.path.join(data_dir, "rivers_india_smooth.geojson"))
 
 # 110m countries for distant neighbors
 ne_countries = gpd.read_file(os.path.join(data_dir, "ne_110m_countries.geojson"))
@@ -67,9 +67,8 @@ lon_min, lon_max = 74.4, 80.8
 lat_min, lat_max = 8.0, 14.2
 study_box = box(lon_min, lat_min, lon_max, lat_max)
 
-# Extract Sri Lanka 10m high-resolution land
-sl_box = box(79.0, 7.8, 82.5, 10.5)
-sl_land_10m = land_10m_gdf[land_10m_gdf.intersects(sl_box)].clip(study_box)
+# Extract Sri Lanka smooth land
+sl_land_10m = land_10m_gdf.clip(study_box)
 
 # Extract India land from 252k-vertex SOI composite
 india_study = india_highres_gdf.clip(study_box)

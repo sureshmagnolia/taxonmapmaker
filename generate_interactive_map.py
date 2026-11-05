@@ -26,7 +26,7 @@ folium.TileLayer('Esri.WorldImagery', name='Esri Satellite Imagery').add_to(m)
 folium.TileLayer('OpenStreetMap', name='OpenStreetMap Standard').add_to(m)
 
 # Load SOI boundaries
-with open(r"C:\Users\sures\.gemini\antigravity\scratch\india_taxonomy_map\data\india_states_clean.geojson", "r", encoding="utf-8") as f:
+with open(r"C:\Users\sures\.gemini\antigravity\scratch\india_taxonomy_map\data\india_states_smooth.geojson", "r", encoding="utf-8") as f:
     states_geojson = json.load(f)
 
 folium.GeoJson(

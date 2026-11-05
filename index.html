@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%232e7d32'/><path d='M50 18 L60 42 L86 46 L66 65 L71 90 L50 77 L29 90 L34 65 L14 46 L40 42 Z' fill='%23ffffff'/></svg>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaxonMap Pro - Taxonomy Map Studio for Indian Biota</title>
@@ -692,12 +693,13 @@
         let layerSriLanka = null;
         let markersLayer = L.layerGroup().addTo(map);
 
-        // Load Vector GeoJSON Assets
+        // Load Ultra-Smooth Vector GeoJSON Assets (Smooth curves, zero client decimation)
         fetch('assets/geojson/india_soi_boundary.geojson')
             .then(res => res.json())
             .then(data => {
                 layerCountry = L.geoJSON(data, {
-                    style: { color: '#000000', weight: 2.2, fill: false, opacity: 1.0 }
+                    smoothFactor: 0,
+                    style: { color: '#000000', weight: 2.2, fill: false, opacity: 1.0, lineCap: 'round', lineJoin: 'round' }
                 }).addTo(map);
             }).catch(e => console.log('SOI boundary load skipped', e));
 
@@ -705,7 +707,8 @@
             .then(res => res.json())
             .then(data => {
                 layerStates = L.geoJSON(data, {
-                    style: { color: '#222222', weight: 1.4, fill: false, dashArray: '4, 4', opacity: 0.85 }
+                    smoothFactor: 0,
+                    style: { color: '#2a2a2a', weight: 1.3, fill: false, dashArray: '4, 4', opacity: 0.85, lineCap: 'round', lineJoin: 'round' }
                 }).addTo(map);
             }).catch(e => console.log('States load skipped', e));
 
@@ -713,7 +716,8 @@
             .then(res => res.json())
             .then(data => {
                 layerSriLanka = L.geoJSON(data, {
-                    style: { color: '#444444', weight: 1.0, fillColor: '#eae6df', fillOpacity: 0.9 }
+                    smoothFactor: 0,
+                    style: { color: '#444444', weight: 1.0, fillColor: '#eae6df', fillOpacity: 0.9, lineCap: 'round', lineJoin: 'round' }
                 }).addTo(map);
             }).catch(e => console.log('Sri Lanka load skipped', e));
 
@@ -721,7 +725,8 @@
             .then(res => res.json())
             .then(data => {
                 layerRivers = L.geoJSON(data, {
-                    style: { color: '#1f78b4', weight: 1.0, opacity: 0.8 }
+                    smoothFactor: 0,
+                    style: { color: '#1f78b4', weight: 1.1, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }
                 }).addTo(map);
             }).catch(e => console.log('Rivers load skipped', e));
 
@@ -751,31 +756,70 @@
             .then(res => res.json())
             .then(data => {
                 L.geoJSON(data, {
-                    style: { color: '#000000', weight: 1.5, fill: false }
+                    smoothFactor: 0,
+                    style: { color: '#000000', weight: 1.5, fill: false, lineCap: 'round', lineJoin: 'round' }
                 }).addTo(insetMap);
             });
 
-        // DMS / DD Coordinate Parsers
-        function parseCoord(input) {
-            input = String(input).trim();
-            const num = parseFloat(input);
-            if (!isNaN(num) && String(num) === input) return num;
+                // Robust DMS / DD Coordinate Parsers & Safe Formatters
+        function safeCoord(val) {
+            if (val === undefined || val === null || val === '') return '';
+            const n = (typeof val === 'number') ? val : parseFloat(val);
+            return (!isNaN(n)) ? n.toFixed(4) : String(val);
+        }
 
-            // DMS Match: 11°04'04.5"N
-            const match = input.match(/(\d+)[\s°]+(\d+)[\s']+([\d.]+)[\s"']*([NSEWnsew])?/);
-            if (match) {
-                const deg = parseFloat(match[1]);
-                const min = parseFloat(match[2]);
-                const sec = parseFloat(match[3]) || 0;
-                const dir = (match[4] || 'N').toUpperCase();
+        function parseCoord(input) {
+            if (input === undefined || input === null) return 0;
+            if (typeof input === 'number') return isNaN(input) ? 0 : input;
+            input = String(input).trim();
+            if (!input) return 0;
+
+            // Clean unicode degrees, primes, quotes, and colons
+            let cleaned = input.replace(/[°º\u00b0\u00ba]/g, ' ')
+                               .replace(/['`′\u2032]/g, "'")
+                               .replace(/["″\u2033]/g, '"')
+                               .replace(/[:;]/g, ' ')
+                               .trim();
+
+            // Match simple decimal degree with optional sign or N/S/E/W
+            // e.g. "10.7870", "10.7870 N", "79.1378°E", "-76.56"
+            const decMatch = cleaned.match(/^([+-]?\d+(?:\.\d+)?)\s*([NSEWnsew])?$/);
+            if (decMatch) {
+                let val = parseFloat(decMatch[1]);
+                const dir = decMatch[2] ? decMatch[2].toUpperCase() : null;
+                if (dir === 'S' || dir === 'W') val = -Math.abs(val);
+                return val;
+            }
+
+            // Match DMS: deg min sec dir (e.g. 11 04 04.5 N or 11°04'04.5"N)
+            const dmsMatch = cleaned.match(/(\d+)\s+(\d+)\s+([\d.]+)\s*([NSEWnsew])?/);
+            if (dmsMatch) {
+                const deg = parseFloat(dmsMatch[1]) || 0;
+                const min = parseFloat(dmsMatch[2]) || 0;
+                const sec = parseFloat(dmsMatch[3]) || 0;
+                const dir = (dmsMatch[4] || 'N').toUpperCase();
                 let dd = deg + min / 60.0 + sec / 3600.0;
                 if (dir === 'S' || dir === 'W') dd = -dd;
                 return dd;
             }
-            return parseFloat(input) || 0;
+
+            // Match DDM: deg min.decimal dir (e.g. 11 04.075 N)
+            const ddmMatch = cleaned.match(/(\d+)\s+([\d.]+)\s*([NSEWnsew])?/);
+            if (ddmMatch) {
+                const deg = parseFloat(ddmMatch[1]) || 0;
+                const min = parseFloat(ddmMatch[2]) || 0;
+                const dir = (ddmMatch[3] || 'N').toUpperCase();
+                let dd = deg + min / 60.0;
+                if (dir === 'S' || dir === 'W') dd = -dd;
+                return dd;
+            }
+
+            const fallback = parseFloat(cleaned);
+            return isNaN(fallback) ? 0 : fallback;
         }
 
         function formatDMS(dd, isLat = true) {
+            if (dd === undefined || dd === null || isNaN(dd)) return isLat ? '0°00'00.0"N' : '0°00'00.0"E';
             const abs = Math.abs(dd);
             const deg = Math.floor(abs);
             const minFloat = (abs - deg) * 60.0;
@@ -784,8 +828,8 @@
             const dir = isLat ? (dd >= 0 ? 'N' : 'S') : (dd >= 0 ? 'E' : 'W');
             return `${deg}°${String(min).padStart(2, '0')}'${String(sec).padStart(4, '0')}"${dir}`;
         }
-
-        // SVG Marker Generator
+        
+// SVG Marker Generator
         function createSvgIcon(color, symbol) {
             let svgShape = '';
             if (symbol === 'star') {
@@ -830,8 +874,8 @@
                                 </div>
                             </div>
                             <div class="row-2">
-                                <input type="text" class="form-control spec-lat" value="${spec.lat.toFixed(4)}" placeholder="Latitude (DD/DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
-                                <input type="text" class="form-control spec-lon" value="${spec.lon.toFixed(4)}" placeholder="Longitude (DD/DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                                <input type="text" class="form-control spec-lat" value="${safeCoord(spec.lat)}" placeholder="Latitude (DD / DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
+                                <input type="text" class="form-control spec-lon" value="${safeCoord(spec.lon)}" placeholder="Longitude (DD / DMS)" data-taxon="${taxon.id}" data-spec="${spec.id}">
                             </div>
                             <div class="row-2" style="margin-top:4px;">
                                 <select class="form-control spec-status" data-taxon="${taxon.id}" data-spec="${spec.id}">
@@ -894,18 +938,17 @@
                         <div style="font-size:12px; font-family:'Inter',sans-serif; line-height:1.5;">
                             <strong style="color:${taxon.color}; font-size:13px;">${taxon.name}</strong><br>
                             <b>${spec.label}</b> (${spec.status})<br>
-                            ${spec.lat.toFixed(4)}°N, ${spec.lon.toFixed(4)}°E<br>
+                            ${safeCoord(spec.lat)}°N, ${safeCoord(spec.lon)}°E<br>
                             DMS: ${formatDMS(spec.lat, true)}, ${formatDMS(spec.lon, false)}<br>
-                            Elevation: ~${spec.alt} m a.s.l.
-                        </div>
-                    `;
+                            Elevation: ~${spec.alt || 0} m a.s.l.
+                        </div>`;
                     marker.bindPopup(popupContent);
 
                     // Update on marker drag
                     marker.on('dragend', (e) => {
                         const newPos = e.target.getLatLng();
                         spec.lat = newPos.lat;
-                        spec.lon = newPos.lon;
+                        spec.lon = (newPos.lng !== undefined) ? newPos.lng : newPos.lon;
                         renderSidebar();
                     });
                 });
@@ -1005,12 +1048,23 @@
                 };
             });
 
-            // Coordinate inputs
+            // Coordinate inputs (with auto-detect comma-separated paste: e.g. "10.7870, 79.1378")
             document.querySelectorAll('.spec-lat').forEach(inp => {
                 inp.onchange = (e) => {
                     const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
                     const s = t ? t.specimens.find(x => x.id === parseInt(e.target.dataset.spec)) : null;
-                    if (s) { s.lat = parseCoord(e.target.value); updateMapMarkers(); }
+                    if (s) {
+                        const raw = e.target.value.trim();
+                        if (raw.includes(',')) {
+                            const parts = raw.split(',');
+                            s.lat = parseCoord(parts[0]);
+                            s.lon = parseCoord(parts[1]);
+                            renderSidebar();
+                        } else {
+                            s.lat = parseCoord(raw);
+                            updateMapMarkers();
+                        }
+                    }
                 };
             });
 
@@ -1018,7 +1072,18 @@
                 inp.onchange = (e) => {
                     const t = taxa.find(x => x.id === parseInt(e.target.dataset.taxon));
                     const s = t ? t.specimens.find(x => x.id === parseInt(e.target.dataset.spec)) : null;
-                    if (s) { s.lon = parseCoord(e.target.value); updateMapMarkers(); }
+                    if (s) {
+                        const raw = e.target.value.trim();
+                        if (raw.includes(',')) {
+                            const parts = raw.split(',');
+                            s.lat = parseCoord(parts[0]);
+                            s.lon = parseCoord(parts[1]);
+                            renderSidebar();
+                        } else {
+                            s.lon = parseCoord(raw);
+                            updateMapMarkers();
+                        }
+                    }
                 };
             });
 
@@ -1106,7 +1171,7 @@
             let specDetails = [];
             taxa.forEach(t => {
                 t.specimens.forEach(s => {
-                    specDetails.push(`${s.label} (${s.lat.toFixed(4)}°N, ${s.lon.toFixed(4)}°E, ${s.alt}m, ${s.status})`);
+                    specDetails.push(${s.label} (°N, °E, m, ));
                 });
             });
 
@@ -1145,3 +1210,4 @@
     </script>
 </body>
 </html>
+

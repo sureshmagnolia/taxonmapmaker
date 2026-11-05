@@ -32,11 +32,11 @@ os.makedirs(out_dir, exist_ok=True)
 
 print("Loading data for Figure 2 (All-India Master Map)...")
 india_highres_gdf = gpd.read_file(os.path.join(data_dir, "india-composite.geojson"))
-states_gdf = gpd.read_file(os.path.join(data_dir, "india_states_clean.geojson"))
-districts_gdf = gpd.read_file(os.path.join(data_dir, "india_states_soi.geojson"))
-land_10m_gdf = gpd.read_file(os.path.join(data_dir, "ne_10m_land.geojson"))
+states_gdf = gpd.read_file(os.path.join(data_dir, "india_states_smooth.geojson"))
+districts_gdf = gpd.read_file(os.path.join(data_dir, "india_districts_smooth.geojson"))
+land_10m_gdf = gpd.read_file(os.path.join(data_dir, "sri_lanka_smooth.geojson"))
 ne_countries = gpd.read_file(os.path.join(data_dir, "ne_110m_countries.geojson"))
-rivers_gdf = gpd.read_file(os.path.join(data_dir, "ne_10m_rivers.geojson"))
+rivers_gdf = gpd.read_file(os.path.join(data_dir, "rivers_india_smooth.geojson"))
 
 raster_india = np.load(os.path.join(data_dir, "raster_india_all.npy"))
 with open(os.path.join(data_dir, "dem_india_all_meta.json"), "r") as f:
@@ -62,8 +62,8 @@ ax_main.imshow(raster_india, extent=[meta_india['lon_left'], meta_india['lon_rig
 ne_neighbors = ne_countries[ne_countries['SOVEREIGNT'] != 'India'].clip(all_box)
 ne_neighbors.plot(ax=ax_main, facecolor='#eae6df', edgecolor='#777777', linewidth=0.5, linestyle='--', zorder=2)
 
-# Sri Lanka 10m smooth land in main map
-sl_all = land_10m_gdf[land_10m_gdf.intersects(box(79.0, 5.8, 82.5, 10.0))].clip(all_box)
+# Sri Lanka smooth land in main map
+sl_all = land_10m_gdf.clip(all_box)
 sl_all.boundary.plot(ax=ax_main, color='#444444', linewidth=0.8, zorder=5)
 
 # 3. Render Major Rivers

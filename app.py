@@ -69,10 +69,10 @@ def dd_to_dms(dd, is_lat=True):
 @st.cache_resource
 def load_spatial_data():
     india_highres = gpd.read_file(os.path.join(DATA_DIR, "india-composite.geojson"))
-    states = gpd.read_file(os.path.join(DATA_DIR, "india_states_clean.geojson"))
-    districts = gpd.read_file(os.path.join(DATA_DIR, "india_states_soi.geojson"))
-    land_10m = gpd.read_file(os.path.join(DATA_DIR, "ne_10m_land.geojson"))
-    rivers = gpd.read_file(os.path.join(DATA_DIR, "ne_10m_rivers.geojson"))
+    states = gpd.read_file(os.path.join(DATA_DIR, "india_states_smooth.geojson"))
+    districts = gpd.read_file(os.path.join(DATA_DIR, "india_districts_smooth.geojson"))
+    land_10m = gpd.read_file(os.path.join(DATA_DIR, "sri_lanka_smooth.geojson"))
+    rivers = gpd.read_file(os.path.join(DATA_DIR, "rivers_india_smooth.geojson"))
     ne_countries = gpd.read_file(os.path.join(DATA_DIR, "ne_110m_countries.geojson"))
     
     dem_south = np.load(os.path.join(DATA_DIR, "dem_south_india.npy"))
@@ -359,7 +359,7 @@ with tab_preview:
 
     # Vector Land Clipping for silky smooth coasts
     india_study = india_highres.clip(study_box)
-    sl_study = land_10m[land_10m.intersects(box(79.0, 7.8, 82.5, 10.5))].clip(study_box)
+    sl_study = land_10m.clip(study_box)
     comb_land = india_study.geometry.union_all()
     if show_sl and len(sl_study) > 0:
         comb_land = comb_land.union(sl_study.geometry.union_all())
