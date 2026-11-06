@@ -679,7 +679,7 @@
             phytotaxa: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13, crossOrigin: true }),
             swiss: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 8, crossOrigin: true }),
             satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, crossOrigin: true }),
-            nordic: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }),
+            nordic: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors', crossOrigin: true }),
             coromandel: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 13, crossOrigin: true }),
             minimal: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, crossOrigin: true })
         };
@@ -1205,38 +1205,423 @@
             a.click();
         };
 
-        // Download 300 DPI Camera-Ready PNG
+        // Download 300 DPI Camera-Ready PNG (Native High-Res Canvas Compositor)
         document.getElementById('btn-download-png').onclick = async () => {
             const btn = document.getElementById('btn-download-png');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating 300 DPI...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Compositing 300 DPI...';
             btn.disabled = true;
 
             try {
                 const mapEl = document.getElementById('map');
-                
-                // Hide temporary UI elements
-                const pickBanner = document.getElementById('pick-banner');
-                const prevPickDisplay = pickBanner ? pickBanner.style.display : 'none';
-                if (pickBanner) pickBanner.style.display = 'none';
+                const mapWidth = mapEl.clientWidth || 1000;
+                const mapHeight = mapEl.clientHeight || 700;
+                const scale = 3; // 300 DPI (~3x resolution)
 
-                const zoomControl = document.querySelector('.leaflet-control-zoom');
-                const prevZoomDisplay = zoomControl ? zoomControl.style.display : '';
-                if (zoomControl) zoomControl.style.display = 'none';
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(mapWidth * scale);
+                canvas.height = Math.round(mapHeight * scale);
+                const ctx = canvas.getContext('2d');
 
-                // html2canvas capture with 3x scale (~300 DPI)
-                const canvas = await html2canvas(mapEl, {
-                    useCORS: true,
-                    allowTaint: true,
-                    scale: 3,
-                    backgroundColor: '#dbeaf8',
-                    logging: false
+                // 1. Oceanic Background Fill
+                ctx.fillStyle = '#dbeaf8';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 2. Basemap Tiles (Slippy Map Mathematical Grid)
+                const bounds = map.getPixelBounds();
+                const tileSize = 256;
+                const zoom = map.getZoom();
+                const minX = Math.floor(bounds.min.x / tileSize);
+                const maxX = Math.floor(bounds.max.x / tileSize);
+                const minY = Math.floor(bounds.min.y / tileSize);
+                const maxY = Math.floor(bounds.max.y / tileSize);
+
+                const tilePromises = [];
+                for (let x = minX; x <= maxX; x++) {
+                    for (let y = minY; y <= maxY; y++) {
+                        const tileUrl = currentBasemap.getTileUrl({ x, y, z: zoom });
+                        const tilePos = L.point(x * tileSize, y * tileSize).subtract(bounds.min);
+                        const p = new Promise(resolve => {
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            img.onload = () => resolve({
+                                img,
+                                x: Math.round(tilePos.x * scale),
+                                y: Math.round(tilePos.y * scale),
+                                w: Math.round(tileSize * scale),
+                                h: Math.round(tileSize * scale)
+                            });
+                            img.onerror = () => resolve(null);
+                            img.src = tileUrl;
+                        });
+                        tilePromises.push(p);
+                    }
+                }
+                const loadedTiles = await Promise.all(tilePromises);
+                loadedTiles.forEach(t => {
+                    if (t && t.img) {
+                        ctx.drawImage(t.img, t.x, t.y, t.w, t.h);
+                    }
                 });
 
-                // Restore UI controls
-                if (pickBanner) pickBanner.style.display = prevPickDisplay;
-                if (zoomControl) zoomControl.style.display = prevZoomDisplay;
+                // 3. Vector Layers (Leaflet Overlay SVG)
+                const svgEl = document.querySelector('#map .leaflet-overlay-pane svg');
+                if (svgEl) {
+                    const viewBoxStr = svgEl.getAttribute('viewBox');
+                    let svgX = 0, svgY = 0, svgW = mapWidth, svgH = mapHeight;
 
+                    if (viewBoxStr) {
+                        const vb = viewBoxStr.split(' ').map(Number);
+                        const topLeft = map.layerPointToContainerPoint(L.point(vb[0], vb[1]));
+                        svgX = topLeft.x;
+                        svgY = topLeft.y;
+                        svgW = vb[2];
+                        svgH = vb[3];
+                    } else {
+                        const svgRect = svgEl.getBoundingClientRect();
+                        const mapRect = mapEl.getBoundingClientRect();
+                        svgX = svgRect.left - mapRect.left;
+                        svgY = svgRect.top - mapRect.top;
+                        svgW = svgRect.width;
+                        svgH = svgRect.height;
+                    }
+
+                    const clonedSvg = svgEl.cloneNode(true);
+                    clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    clonedSvg.setAttribute('width', svgW);
+                    clonedSvg.setAttribute('height', svgH);
+                    clonedSvg.removeAttribute('style');
+
+                    const svgString = new XMLSerializer().serializeToString(clonedSvg);
+                    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                    const svgUrl = URL.createObjectURL(svgBlob);
+
+                    await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            ctx.drawImage(img, Math.round(svgX * scale), Math.round(svgY * scale), Math.round(svgW * scale), Math.round(svgH * scale));
+                            URL.revokeObjectURL(svgUrl);
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            URL.revokeObjectURL(svgUrl);
+                            resolve();
+                        };
+                        img.src = svgUrl;
+                    });
+                }
+
+                // 4. Specimen Markers & Labels
+                taxa.forEach(taxon => {
+                    taxon.specimens.forEach(spec => {
+                        if (spec.lat && spec.lon) {
+                            const pt = map.latLngToContainerPoint([spec.lat, spec.lon]);
+                            const mx = Math.round(pt.x * scale);
+                            const my = Math.round(pt.y * scale);
+
+                            if (pt.x >= -50 && pt.x <= mapWidth + 50 && pt.y >= -50 && pt.y <= mapHeight + 50) {
+                                ctx.save();
+
+                                // Drop shadow for marker
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+                                ctx.shadowBlur = 8 * (scale / 2);
+                                ctx.shadowOffsetX = 2 * (scale / 2);
+                                ctx.shadowOffsetY = 4 * (scale / 2);
+
+                                ctx.fillStyle = taxon.color;
+                                ctx.strokeStyle = '#000000';
+                                ctx.lineWidth = 2 * (scale / 2);
+                                ctx.beginPath();
+
+                                const r = 12 * (scale / 2);
+                                if (taxon.symbol === 'star') {
+                                    for (let i = 0; i < 10; i++) {
+                                        const rad = (i * Math.PI) / 5 - Math.PI / 2;
+                                        const dist = (i % 2 === 0) ? r : r * 0.45;
+                                        const px = mx + Math.cos(rad) * dist;
+                                        const py = my + Math.sin(rad) * dist;
+                                        if (i === 0) ctx.moveTo(px, py);
+                                        else ctx.lineTo(px, py);
+                                    }
+                                    ctx.closePath();
+                                } else if (taxon.symbol === 'triangle') {
+                                    ctx.moveTo(mx, my - r * 1.15);
+                                    ctx.lineTo(mx + r, my + r * 0.7);
+                                    ctx.lineTo(mx - r, my + r * 0.7);
+                                    ctx.closePath();
+                                } else if (taxon.symbol === 'square') {
+                                    ctx.rect(mx - r * 0.8, my - r * 0.8, r * 1.6, r * 1.6);
+                                } else if (taxon.symbol === 'diamond') {
+                                    ctx.moveTo(mx, my - r * 1.1);
+                                    ctx.lineTo(mx + r * 0.9, my);
+                                    ctx.lineTo(mx, my + r * 1.1);
+                                    ctx.lineTo(mx - r * 0.9, my);
+                                    ctx.closePath();
+                                } else {
+                                    ctx.arc(mx, my, r * 0.85, 0, Math.PI * 2);
+                                }
+                                ctx.fill();
+                                ctx.stroke();
+
+                                // Reset shadow for badge
+                                ctx.shadowColor = 'transparent';
+
+                                // Text callout badge
+                                const labelText = `${taxon.name}: ${spec.label} (${spec.status})`;
+                                const fontSize = Math.round(11 * (scale / 2));
+                                ctx.font = `bold ${fontSize}px 'Inter', Arial, sans-serif`;
+                                const textMetrics = ctx.measureText(labelText);
+                                const padX = 8 * (scale / 2);
+                                const padY = 5 * (scale / 2);
+                                const boxW = textMetrics.width + padX * 2;
+                                const boxH = fontSize + padY * 2;
+                                const boxX = mx + r + 4 * (scale / 2);
+                                const boxY = my - boxH / 2;
+
+                                ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+                                ctx.strokeStyle = '#444444';
+                                ctx.lineWidth = 1 * (scale / 2);
+                                ctx.beginPath();
+                                if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 4 * (scale / 2));
+                                else ctx.rect(boxX, boxY, boxW, boxH);
+                                ctx.fill();
+                                ctx.stroke();
+
+                                ctx.fillStyle = '#111827';
+                                ctx.textBaseline = 'middle';
+                                ctx.textAlign = 'left';
+                                ctx.fillText(labelText, boxX + padX, boxY + boxH / 2);
+
+                                ctx.restore();
+                            }
+                        }
+                    });
+                });
+
+                // 5. Survey of India National Inset Map
+                const insetContainer = document.getElementById('inset-map-container');
+                if (insetContainer && insetContainer.style.display !== 'none') {
+                    const mapRect = mapEl.getBoundingClientRect();
+                    const inRect = insetContainer.getBoundingClientRect();
+                    const inX = Math.round((inRect.left - mapRect.left) * scale);
+                    const inY = Math.round((inRect.top - mapRect.top) * scale);
+                    const inW = Math.round(inRect.width * scale);
+                    const inH = Math.round(inRect.height * scale);
+                    const headerH = Math.round(24 * (scale / 2));
+
+                    ctx.save();
+
+                    // Card shadow and background
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+                    ctx.shadowBlur = 10 * (scale / 2);
+                    ctx.fillStyle = '#dbeaf8';
+                    ctx.strokeStyle = '#222222';
+                    ctx.lineWidth = 2 * (scale / 2);
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    else ctx.rect(inX, inY, inW, inH);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.shadowColor = 'transparent';
+
+                    // Clip content to rounded card
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    else ctx.rect(inX, inY, inW, inH);
+                    ctx.clip();
+
+                    // Draw Inset Map Tiles
+                    const inBounds = insetMap.getPixelBounds();
+                    const inMinX = Math.floor(inBounds.min.x / 256);
+                    const inMaxX = Math.floor(inBounds.max.x / 256);
+                    const inMinY = Math.floor(inBounds.min.y / 256);
+                    const inMaxY = Math.floor(inBounds.max.y / 256);
+                    const inZoom = insetMap.getZoom();
+
+                    const inTilePromises = [];
+                    for (let x = inMinX; x <= inMaxX; x++) {
+                        for (let y = inMinY; y <= inMaxY; y++) {
+                            const tileUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/${inZoom}/${y}/${x}`;
+                            const tilePos = L.point(x * 256, y * 256).subtract(inBounds.min);
+                            const p = new Promise(resolve => {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = () => resolve({
+                                    img,
+                                    x: inX + Math.round(tilePos.x * scale),
+                                    y: inY + Math.round(tilePos.y * scale) + headerH,
+                                    w: Math.round(256 * scale),
+                                    h: Math.round(256 * scale)
+                                });
+                                img.onerror = () => resolve(null);
+                                img.src = tileUrl;
+                            });
+                            inTilePromises.push(p);
+                        }
+                    }
+                    const loadedInTiles = await Promise.all(inTilePromises);
+                    loadedInTiles.forEach(t => {
+                        if (t && t.img) ctx.drawImage(t.img, t.x, t.y, t.w, t.h);
+                    });
+
+                    // Draw Inset Vector SVG (SOI Boundary & Study Area Rectangle)
+                    const insetSvg = document.querySelector('#inset-map .leaflet-overlay-pane svg');
+                    if (insetSvg) {
+                        const inViewBoxStr = insetSvg.getAttribute('viewBox');
+                        let inSvgX = inX, inSvgY = inY + headerH;
+                        let inSvgW = inW, inSvgH = inH - headerH;
+
+                        if (inViewBoxStr) {
+                            const inVb = inViewBoxStr.split(' ').map(Number);
+                            const inTopLeft = insetMap.layerPointToContainerPoint(L.point(inVb[0], inVb[1]));
+                            inSvgX = inX + Math.round(inTopLeft.x * scale);
+                            inSvgY = inY + headerH + Math.round(inTopLeft.y * scale);
+                            inSvgW = Math.round(inVb[2] * scale);
+                            inSvgH = Math.round(inVb[3] * scale);
+                        }
+
+                        const clonedInSvg = insetSvg.cloneNode(true);
+                        clonedInSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                        clonedInSvg.setAttribute('width', inSvgW);
+                        clonedInSvg.setAttribute('height', inSvgH);
+                        clonedInSvg.removeAttribute('style');
+
+                        const inSvgXml = new XMLSerializer().serializeToString(clonedInSvg);
+                        const inSvgBlob = new Blob([inSvgXml], { type: 'image/svg+xml;charset=utf-8' });
+                        const inSvgUrl = URL.createObjectURL(inSvgBlob);
+
+                        await new Promise(resolve => {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, inSvgX, inSvgY, inSvgW, inSvgH);
+                                URL.revokeObjectURL(inSvgUrl);
+                                resolve();
+                            };
+                            img.onerror = () => {
+                                URL.revokeObjectURL(inSvgUrl);
+                                resolve();
+                            };
+                            img.src = inSvgUrl;
+                        });
+                    }
+
+                    // Inset Header Bar: "INDIA"
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(inX, inY, inW, headerH);
+                    ctx.strokeStyle = '#cccccc';
+                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(inX, inY + headerH);
+                    ctx.lineTo(inX + inW, inY + headerH);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#111827';
+                    ctx.font = `bold ${Math.round(11 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('INDIA', inX + inW / 2, inY + headerH / 2);
+
+                    // Re-stroke outer frame of inset card
+                    ctx.strokeStyle = '#222222';
+                    ctx.lineWidth = 2 * (scale / 2);
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    else ctx.rect(inX, inY, inW, inH);
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+
+                // 6. Elevation Colorbar Overlay (if visible)
+                const colorbarEl = document.getElementById('elev-colorbar');
+                if (colorbarEl && colorbarEl.style.display !== 'none') {
+                    const mapRect = mapEl.getBoundingClientRect();
+                    const cbRect = colorbarEl.getBoundingClientRect();
+                    const cbX = Math.round((cbRect.left - mapRect.left) * scale);
+                    const cbY = Math.round((cbRect.top - mapRect.top) * scale);
+                    const cbW = Math.round(cbRect.width * scale);
+                    const cbH = Math.round(cbRect.height * scale);
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+                    ctx.strokeStyle = '#444444';
+                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(cbX, cbY, cbW, cbH, 6 * (scale / 2));
+                    else ctx.rect(cbX, cbY, cbW, cbH);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Title
+                    ctx.fillStyle = '#111827';
+                    ctx.font = `bold ${Math.round(10 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText('Elevation (m a.s.l.)', cbX + cbW / 2, cbY + Math.round(6 * (scale / 2)));
+
+                    // Gradient bar
+                    const gradX = cbX + Math.round(12 * (scale / 2));
+                    const gradY = cbY + Math.round(20 * (scale / 2));
+                    const gradW = cbW - Math.round(24 * (scale / 2));
+                    const gradH = Math.round(8 * (scale / 2));
+                    const grad = ctx.createLinearGradient(gradX, 0, gradX + gradW, 0);
+                    grad.addColorStop(0, '#558b2f');
+                    grad.addColorStop(0.25, '#c5e1a5');
+                    grad.addColorStop(0.5, '#fff59d');
+                    grad.addColorStop(0.75, '#ffb74d');
+                    grad.addColorStop(1, '#6d4c41');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(gradX, gradY, gradW, gradH);
+                    ctx.strokeStyle = '#555555';
+                    ctx.strokeRect(gradX, gradY, gradW, gradH);
+
+                    // Ticks
+                    ctx.fillStyle = '#333333';
+                    ctx.font = `${Math.round(8 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.fillText('0', gradX, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.textAlign = 'center';
+                    ctx.fillText('500', gradX + gradW * 0.25, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.fillText('1000', gradX + gradW * 0.5, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.fillText('1800', gradX + gradW * 0.75, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.textAlign = 'right';
+                    ctx.fillText('2600m', gradX + gradW, gradY + gradH + Math.round(4 * (scale / 2)));
+
+                    ctx.restore();
+                }
+
+                // 7. Metric Scale Bar
+                const scaleEl = document.querySelector('.leaflet-control-scale-line');
+                if (scaleEl) {
+                    const scaleText = scaleEl.innerText || '50 km';
+                    const scaleW = Math.round((scaleEl.offsetWidth || 80) * scale);
+                    const scaleH = Math.round(12 * (scale / 2));
+                    const sX = Math.round(20 * scale);
+                    const sY = Math.round((mapHeight - 35) * scale);
+
+                    ctx.save();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(sX, sY, scaleW, scaleH);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(sX, sY, scaleW / 2, scaleH);
+                    ctx.strokeStyle = '#222222';
+                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.strokeRect(sX, sY, scaleW, scaleH);
+
+                    ctx.fillStyle = '#000000';
+                    ctx.font = `bold ${Math.round(10 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(scaleText, sX + scaleW / 2, sY - Math.round(4 * (scale / 2)));
+                    ctx.restore();
+                }
+
+                // 8. Outer Neatline Border (Publication Standard)
+                ctx.strokeStyle = '#222222';
+                ctx.lineWidth = Math.round(2.5 * scale);
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+                // 9. Download PNG
                 canvas.toBlob((blob) => {
                     const filename = `TaxonMap_Manuscript_300DPI_${Date.now()}.png`;
                     if (blob) {
@@ -1263,6 +1648,7 @@
                         btn.disabled = false;
                     }, 2000);
                 }, 'image/png');
+
             } catch (err) {
                 console.error('PNG export failed:', err);
                 alert('PNG export error: ' + err.message);
@@ -1283,12 +1669,26 @@
                 const width = mapEl.clientWidth || 1000;
                 const height = mapEl.clientHeight || 700;
 
-                // Collect Leaflet Vector Overlays
+                // Collect Leaflet Vector Overlays with exact positioning
                 const leafletSvg = document.querySelector('#map .leaflet-overlay-pane svg');
                 let pathsMarkup = '';
                 if (leafletSvg) {
                     const clonedSvg = leafletSvg.cloneNode(true);
-                    pathsMarkup = clonedSvg.innerHTML;
+                    const viewBoxStr = leafletSvg.getAttribute('viewBox') || `0 0 ${width} ${height}`;
+                    let svgX = 0, svgY = 0, svgW = width, svgH = height;
+                    if (leafletSvg.getAttribute('viewBox')) {
+                        const vb = viewBoxStr.split(' ').map(Number);
+                        const topLeft = map.layerPointToContainerPoint(L.point(vb[0], vb[1]));
+                        svgX = Math.round(topLeft.x);
+                        svgY = Math.round(topLeft.y);
+                        svgW = Math.round(vb[2]);
+                        svgH = Math.round(vb[3]);
+                    }
+                    pathsMarkup = `
+                        <svg x="${svgX}" y="${svgY}" width="${svgW}" height="${svgH}" viewBox="${viewBoxStr}">
+                            ${clonedSvg.innerHTML}
+                        </svg>
+                    `;
                 }
 
                 // Collect Inset Map if visible
@@ -1302,13 +1702,35 @@
                     const insetY = Math.round(insetRect.top - mapRect.top);
                     const inW = Math.round(insetRect.width);
                     const inH = Math.round(insetRect.height);
+                    const headerH = 22;
+
+                    let inSvgMarkup = '';
+                    if (insetSvg) {
+                        const inVbStr = insetSvg.getAttribute('viewBox') || `0 0 ${inW} ${inH - headerH}`;
+                        let inSvgX = 0, inSvgY = 0, inSvgW = inW, inSvgH = inH - headerH;
+                        if (insetSvg.getAttribute('viewBox')) {
+                            const inVb = inVbStr.split(' ').map(Number);
+                            const inTopLeft = insetMap.layerPointToContainerPoint(L.point(inVb[0], inVb[1]));
+                            inSvgX = Math.round(inTopLeft.x);
+                            inSvgY = Math.round(inTopLeft.y);
+                            inSvgW = Math.round(inVb[2]);
+                            inSvgH = Math.round(inVb[3]);
+                        }
+                        inSvgMarkup = `
+                            <svg x="${inSvgX}" y="${inSvgY + headerH}" width="${inSvgW}" height="${inSvgH}" viewBox="${inVbStr}">
+                                ${insetSvg.innerHTML}
+                            </svg>
+                        `;
+                    }
 
                     insetMarkup = `
                         <g id="inset-map-group" transform="translate(${insetX}, ${insetY})">
-                            <rect width="${inW}" height="${inH}" fill="#e8f0f8" stroke="#444444" stroke-width="1.5" rx="6"/>
-                            <rect width="${inW}" height="22" fill="#ffffff" fill-opacity="0.92" rx="6 6 0 0"/>
+                            <rect width="${inW}" height="${inH}" fill="#e8f0f8" stroke="#333333" stroke-width="1.5" rx="6"/>
+                            ${inSvgMarkup}
+                            <rect width="${inW}" height="${headerH}" fill="#ffffff" fill-opacity="0.95" rx="6 6 0 0"/>
+                            <line x1="0" y1="${headerH}" x2="${inW}" y2="${headerH}" stroke="#cccccc" stroke-width="1"/>
                             <text x="${inW / 2}" y="15" font-family="'Inter', Arial, sans-serif" font-size="10" font-weight="bold" fill="#1a1a1a" text-anchor="middle">INDIA</text>
-                            ${insetSvg ? insetSvg.innerHTML : ''}
+                            <rect width="${inW}" height="${inH}" fill="none" stroke="#222222" stroke-width="1.5" rx="6"/>
                         </g>
                     `;
                 }
@@ -1338,7 +1760,7 @@
                                 const labelSvg = `
                                     <g id="marker-${spec.id}">
                                         ${symbolSvg}
-                                        <rect x="${Math.round(pt.x) + 14}" y="${Math.round(pt.y) - 11}" width="${boxWidth}" height="18" fill="#ffffff" fill-opacity="0.92" stroke="#cccccc" stroke-width="0.8" rx="3"/>
+                                        <rect x="${Math.round(pt.x) + 14}" y="${Math.round(pt.y) - 11}" width="${boxWidth}" height="18" fill="#ffffff" fill-opacity="0.94" stroke="#444444" stroke-width="0.8" rx="3"/>
                                         <text x="${Math.round(pt.x) + 19}" y="${Math.round(pt.y) + 2}" font-family="'Inter', Arial, sans-serif" font-size="9.5" font-weight="600" fill="#222222">${labelText}</text>
                                     </g>
                                 `;
@@ -1357,7 +1779,7 @@
                     const scaleWidth = scaleEl.offsetWidth || 80;
                     scaleMarkup = `
                         <g id="scale-bar" transform="translate(20, ${height - 35})">
-                            <rect width="${scaleWidth}" height="14" fill="#ffffff" fill-opacity="0.85" stroke="#333333" stroke-width="0.8"/>
+                            <rect width="${scaleWidth}" height="14" fill="#ffffff" fill-opacity="0.9" stroke="#333333" stroke-width="0.8"/>
                             <rect x="0" y="0" width="${scaleWidth / 2}" height="14" fill="#000000"/>
                             <text x="${scaleWidth / 2}" y="-4" font-family="'Inter', Arial, sans-serif" font-size="9" font-weight="bold" fill="#000000" text-anchor="middle">${scaleText}</text>
                         </g>
@@ -1417,7 +1839,6 @@
                 btn.disabled = false;
             }
         };
-
 
         // Initial setup
         renderSidebar();
