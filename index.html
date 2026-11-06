@@ -338,13 +338,14 @@
         .inset-bottom-left { bottom: 30px; left: 20px; }
 
         .inset-header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 3px 6px;
-            font-size: 0.65rem;
-            font-weight: bold;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 6px 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.6px;
             text-align: center;
-            border-bottom: 1px solid #444;
-            color: #000;
+            border-bottom: 1.5px solid #333333;
+            color: #111827;
         }
 
         #inset-map {
@@ -358,32 +359,36 @@
             position: absolute;
             bottom: 30px;
             right: 240px;
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid #444444;
-            border-radius: 5px;
-            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1.5px solid #444444;
+            border-radius: 6px;
+            padding: 8px 14px;
             z-index: 1000;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-            font-size: 0.72rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+            font-size: 0.82rem;
+            font-weight: 600;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-width: 180px;
         }
 
         .color-ramp {
-            width: 150px;
-            height: 10px;
-            border: 1px solid #222;
-            background: linear-gradient(to right, #a1d99b, #c7e9c0, #edf8b1, #fed976, #feb24c, #fd8d3c, #e6550d, #a63603, #4a1400);
-            margin: 4px 0;
+            width: 170px;
+            height: 12px;
+            border: 1.2px solid #222;
+            background: linear-gradient(to right, #558b2f, #c5e1a5, #fff59d, #ffb74d, #6d4c41);
+            margin: 6px 0;
+            border-radius: 2px;
         }
 
         .ramp-ticks {
             display: flex;
             justify-content: space-between;
-            width: 150px;
-            font-size: 0.65rem;
-            color: #333;
+            width: 170px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #1f2937;
         }
 
         /* Custom SVG markers on map */
@@ -613,6 +618,18 @@
             <p style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 12px;">
                 Download high-resolution 300 DPI figures and auto-generated captions formatted for taxonomic journals.
             </p>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-font"></i> Map Typography & Label Size</span>
+                    <span style="font-size: 0.75rem; color: var(--primary); font-weight: 600;">Publication Standard</span>
+                </label>
+                <select class="form-control" id="select-label-size">
+                    <option value="large" selected>Large (Recommended for Journals - 15pt bold)</option>
+                    <option value="xlarge">Extra Large (High Legibility & Slides - 18pt bold)</option>
+                    <option value="medium">Medium (Compact Multi-Taxon - 12pt bold)</option>
+                </select>
+            </div>
 
             <label class="form-label">Auto-Generated Manuscript Caption (Phytotaxa / Rheedea Style):</label>
             <div class="caption-box" id="caption-preview">
@@ -1205,7 +1222,7 @@
             a.click();
         };
 
-        // Download 300 DPI Camera-Ready PNG (Native High-Res Canvas Compositor)
+        // Download 300 DPI Camera-Ready PNG (Native High-Res Canvas Compositor with Publication Typography)
         document.getElementById('btn-download-png').onclick = async () => {
             const btn = document.getElementById('btn-download-png');
             const originalHtml = btn.innerHTML;
@@ -1217,6 +1234,22 @@
                 const mapWidth = mapEl.clientWidth || 1000;
                 const mapHeight = mapEl.clientHeight || 700;
                 const scale = 3; // 300 DPI (~3x resolution)
+
+                // Typography scaling multiplier
+                const sizeSetting = document.getElementById('select-label-size') ? document.getElementById('select-label-size').value : 'large';
+                let textMultiplier = 1.0;
+                if (sizeSetting === 'xlarge') {
+                    textMultiplier = 1.35;
+                } else if (sizeSetting === 'medium') {
+                    textMultiplier = 0.8;
+                }
+
+                const markerFontSize = Math.round(15 * scale * textMultiplier);
+                const markerRadius = Math.round(13 * scale * textMultiplier);
+                const markerStrokeWidth = Math.max(2, Math.round(1.5 * scale * textMultiplier));
+                const padX = Math.round(14 * scale * textMultiplier);
+                const padY = Math.round(8 * scale * textMultiplier);
+                const badgeRadius = Math.round(6 * scale * textMultiplier);
 
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.round(mapWidth * scale);
@@ -1311,7 +1344,7 @@
                     });
                 }
 
-                // 4. Specimen Markers & Labels
+                // 4. Specimen Markers & Publication Callout Badges
                 taxa.forEach(taxon => {
                     taxon.specimens.forEach(spec => {
                         if (spec.lat && spec.lon) {
@@ -1324,20 +1357,20 @@
 
                                 // Drop shadow for marker
                                 ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-                                ctx.shadowBlur = 8 * (scale / 2);
-                                ctx.shadowOffsetX = 2 * (scale / 2);
-                                ctx.shadowOffsetY = 4 * (scale / 2);
+                                ctx.shadowBlur = Math.round(10 * scale);
+                                ctx.shadowOffsetX = Math.round(3 * scale);
+                                ctx.shadowOffsetY = Math.round(4 * scale);
 
                                 ctx.fillStyle = taxon.color;
                                 ctx.strokeStyle = '#000000';
-                                ctx.lineWidth = 2 * (scale / 2);
+                                ctx.lineWidth = markerStrokeWidth;
                                 ctx.beginPath();
 
-                                const r = 12 * (scale / 2);
+                                const r = markerRadius;
                                 if (taxon.symbol === 'star') {
                                     for (let i = 0; i < 10; i++) {
                                         const rad = (i * Math.PI) / 5 - Math.PI / 2;
-                                        const dist = (i % 2 === 0) ? r : r * 0.45;
+                                        const dist = (i % 2 === 0) ? r : r * 0.46;
                                         const px = mx + Math.cos(rad) * dist;
                                         const py = my + Math.sin(rad) * dist;
                                         if (i === 0) ctx.moveTo(px, py);
@@ -1345,48 +1378,49 @@
                                     }
                                     ctx.closePath();
                                 } else if (taxon.symbol === 'triangle') {
-                                    ctx.moveTo(mx, my - r * 1.15);
-                                    ctx.lineTo(mx + r, my + r * 0.7);
-                                    ctx.lineTo(mx - r, my + r * 0.7);
+                                    ctx.moveTo(mx, my - r * 1.2);
+                                    ctx.lineTo(mx + r * 1.05, my + r * 0.75);
+                                    ctx.lineTo(mx - r * 1.05, my + r * 0.75);
                                     ctx.closePath();
                                 } else if (taxon.symbol === 'square') {
-                                    ctx.rect(mx - r * 0.8, my - r * 0.8, r * 1.6, r * 1.6);
+                                    ctx.rect(mx - r * 0.85, my - r * 0.85, r * 1.7, r * 1.7);
                                 } else if (taxon.symbol === 'diamond') {
-                                    ctx.moveTo(mx, my - r * 1.1);
-                                    ctx.lineTo(mx + r * 0.9, my);
-                                    ctx.lineTo(mx, my + r * 1.1);
-                                    ctx.lineTo(mx - r * 0.9, my);
+                                    ctx.moveTo(mx, my - r * 1.15);
+                                    ctx.lineTo(mx + r * 0.95, my);
+                                    ctx.lineTo(mx, my + r * 1.15);
+                                    ctx.lineTo(mx - r * 0.95, my);
                                     ctx.closePath();
                                 } else {
-                                    ctx.arc(mx, my, r * 0.85, 0, Math.PI * 2);
+                                    ctx.arc(mx, my, r * 0.9, 0, Math.PI * 2);
                                 }
                                 ctx.fill();
                                 ctx.stroke();
 
                                 // Reset shadow for badge
-                                ctx.shadowColor = 'transparent';
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+                                ctx.shadowBlur = Math.round(8 * scale);
+                                ctx.shadowOffsetX = Math.round(2 * scale);
+                                ctx.shadowOffsetY = Math.round(3 * scale);
 
-                                // Text callout badge
+                                // High-Legibility Text Callout Badge
                                 const labelText = `${taxon.name}: ${spec.label} (${spec.status})`;
-                                const fontSize = Math.round(11 * (scale / 2));
-                                ctx.font = `bold ${fontSize}px 'Inter', Arial, sans-serif`;
+                                ctx.font = `bold ${markerFontSize}px 'Inter', Arial, sans-serif`;
                                 const textMetrics = ctx.measureText(labelText);
-                                const padX = 8 * (scale / 2);
-                                const padY = 5 * (scale / 2);
-                                const boxW = textMetrics.width + padX * 2;
-                                const boxH = fontSize + padY * 2;
-                                const boxX = mx + r + 4 * (scale / 2);
+                                const boxW = Math.round(textMetrics.width + padX * 2);
+                                const boxH = Math.round(markerFontSize + padY * 2);
+                                const boxX = mx + r + Math.round(8 * scale);
                                 const boxY = my - boxH / 2;
 
-                                ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-                                ctx.strokeStyle = '#444444';
-                                ctx.lineWidth = 1 * (scale / 2);
+                                ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+                                ctx.strokeStyle = '#222222';
+                                ctx.lineWidth = Math.max(1.5, Math.round(1.2 * scale));
                                 ctx.beginPath();
-                                if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 4 * (scale / 2));
+                                if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, badgeRadius);
                                 else ctx.rect(boxX, boxY, boxW, boxH);
                                 ctx.fill();
                                 ctx.stroke();
 
+                                ctx.shadowColor = 'transparent';
                                 ctx.fillStyle = '#111827';
                                 ctx.textBaseline = 'middle';
                                 ctx.textAlign = 'left';
@@ -1398,27 +1432,27 @@
                     });
                 });
 
-                // 5. Survey of India National Inset Map
+                // 5. Survey of India National Inset Map with Clear Typography
                 const insetContainer = document.getElementById('inset-map-container');
                 if (insetContainer && insetContainer.style.display !== 'none') {
                     const mapRect = mapEl.getBoundingClientRect();
                     const inRect = insetContainer.getBoundingClientRect();
+                    const inW = Math.round(inRect.width * scale * 1.15);
+                    const inH = Math.round(inRect.height * scale * 1.15);
                     const inX = Math.round((inRect.left - mapRect.left) * scale);
                     const inY = Math.round((inRect.top - mapRect.top) * scale);
-                    const inW = Math.round(inRect.width * scale);
-                    const inH = Math.round(inRect.height * scale);
-                    const headerH = Math.round(24 * (scale / 2));
+                    const headerH = Math.round(26 * scale);
 
                     ctx.save();
 
                     // Card shadow and background
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-                    ctx.shadowBlur = 10 * (scale / 2);
+                    ctx.shadowBlur = Math.round(12 * scale);
                     ctx.fillStyle = '#dbeaf8';
                     ctx.strokeStyle = '#222222';
-                    ctx.lineWidth = 2 * (scale / 2);
+                    ctx.lineWidth = Math.round(2.2 * scale);
                     ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, Math.round(8 * scale));
                     else ctx.rect(inX, inY, inW, inH);
                     ctx.fill();
                     ctx.stroke();
@@ -1426,7 +1460,7 @@
 
                     // Clip content to rounded card
                     ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, Math.round(8 * scale));
                     else ctx.rect(inX, inY, inW, inH);
                     ctx.clip();
 
@@ -1505,65 +1539,69 @@
                         });
                     }
 
-                    // Inset Header Bar: "INDIA"
+                    // Inset Header Bar: "INDIA" (Bold, Prominent 14pt Publication Font)
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(inX, inY, inW, headerH);
-                    ctx.strokeStyle = '#cccccc';
-                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = Math.round(1.5 * scale);
                     ctx.beginPath();
                     ctx.moveTo(inX, inY + headerH);
                     ctx.lineTo(inX + inW, inY + headerH);
                     ctx.stroke();
 
                     ctx.fillStyle = '#111827';
-                    ctx.font = `bold ${Math.round(11 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.font = `bold ${Math.round(14 * scale)}px 'Inter', Arial, sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('INDIA', inX + inW / 2, inY + headerH / 2);
 
                     // Re-stroke outer frame of inset card
                     ctx.strokeStyle = '#222222';
-                    ctx.lineWidth = 2 * (scale / 2);
+                    ctx.lineWidth = Math.round(2.2 * scale);
                     ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, 8 * (scale / 2));
+                    if (ctx.roundRect) ctx.roundRect(inX, inY, inW, inH, Math.round(8 * scale));
                     else ctx.rect(inX, inY, inW, inH);
                     ctx.stroke();
 
                     ctx.restore();
                 }
 
-                // 6. Elevation Colorbar Overlay (if visible)
+                // 6. Elevation Colorbar Overlay (Clear, Crisp Legend)
                 const colorbarEl = document.getElementById('elev-colorbar');
                 if (colorbarEl && colorbarEl.style.display !== 'none') {
                     const mapRect = mapEl.getBoundingClientRect();
                     const cbRect = colorbarEl.getBoundingClientRect();
+                    const cbW = Math.round(cbRect.width * scale * 1.35);
+                    const cbH = Math.round(cbRect.height * scale * 1.3);
                     const cbX = Math.round((cbRect.left - mapRect.left) * scale);
                     const cbY = Math.round((cbRect.top - mapRect.top) * scale);
-                    const cbW = Math.round(cbRect.width * scale);
-                    const cbH = Math.round(cbRect.height * scale);
 
                     ctx.save();
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-                    ctx.strokeStyle = '#444444';
-                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+                    ctx.shadowBlur = Math.round(8 * scale);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = Math.round(1.5 * scale);
                     ctx.beginPath();
-                    if (ctx.roundRect) ctx.roundRect(cbX, cbY, cbW, cbH, 6 * (scale / 2));
+                    if (ctx.roundRect) ctx.roundRect(cbX, cbY, cbW, cbH, Math.round(6 * scale));
                     else ctx.rect(cbX, cbY, cbW, cbH);
                     ctx.fill();
                     ctx.stroke();
+                    ctx.shadowColor = 'transparent';
 
                     // Title
                     ctx.fillStyle = '#111827';
-                    ctx.font = `bold ${Math.round(10 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.font = `bold ${Math.round(13 * scale)}px 'Inter', Arial, sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'top';
-                    ctx.fillText('Elevation (m a.s.l.)', cbX + cbW / 2, cbY + Math.round(6 * (scale / 2)));
+                    ctx.fillText('Elevation (m a.s.l.)', cbX + cbW / 2, cbY + Math.round(8 * scale));
 
                     // Gradient bar
-                    const gradX = cbX + Math.round(12 * (scale / 2));
-                    const gradY = cbY + Math.round(20 * (scale / 2));
-                    const gradW = cbW - Math.round(24 * (scale / 2));
-                    const gradH = Math.round(8 * (scale / 2));
+                    const gradPadX = Math.round(18 * scale);
+                    const gradX = cbX + gradPadX;
+                    const gradY = cbY + Math.round(36 * scale);
+                    const gradW = cbW - gradPadX * 2;
+                    const gradH = Math.round(13 * scale);
                     const grad = ctx.createLinearGradient(gradX, 0, gradX + gradW, 0);
                     grad.addColorStop(0, '#558b2f');
                     grad.addColorStop(0.25, '#c5e1a5');
@@ -1572,32 +1610,35 @@
                     grad.addColorStop(1, '#6d4c41');
                     ctx.fillStyle = grad;
                     ctx.fillRect(gradX, gradY, gradW, gradH);
-                    ctx.strokeStyle = '#555555';
+                    ctx.strokeStyle = '#444444';
+                    ctx.lineWidth = Math.round(1.2 * scale);
                     ctx.strokeRect(gradX, gradY, gradW, gradH);
 
-                    // Ticks
-                    ctx.fillStyle = '#333333';
-                    ctx.font = `${Math.round(8 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    // Ticks (Bold, clearly legible 11pt publication font)
+                    ctx.fillStyle = '#1f2937';
+                    ctx.font = `bold ${Math.round(11 * scale)}px 'Inter', Arial, sans-serif`;
+                    ctx.textBaseline = 'top';
+                    const tickY = gradY + gradH + Math.round(6 * scale);
                     ctx.textAlign = 'left';
-                    ctx.fillText('0', gradX, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.fillText('0', gradX, tickY);
                     ctx.textAlign = 'center';
-                    ctx.fillText('500', gradX + gradW * 0.25, gradY + gradH + Math.round(4 * (scale / 2)));
-                    ctx.fillText('1000', gradX + gradW * 0.5, gradY + gradH + Math.round(4 * (scale / 2)));
-                    ctx.fillText('1800', gradX + gradW * 0.75, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.fillText('500', gradX + gradW * 0.25, tickY);
+                    ctx.fillText('1000', gradX + gradW * 0.5, tickY);
+                    ctx.fillText('1800', gradX + gradW * 0.75, tickY);
                     ctx.textAlign = 'right';
-                    ctx.fillText('2600m', gradX + gradW, gradY + gradH + Math.round(4 * (scale / 2)));
+                    ctx.fillText('2600m', gradX + gradW, tickY);
 
                     ctx.restore();
                 }
 
-                // 7. Metric Scale Bar
+                // 7. Metric Scale Bar (Clear 13pt bold font and high-contrast bar)
                 const scaleEl = document.querySelector('.leaflet-control-scale-line');
                 if (scaleEl) {
                     const scaleText = scaleEl.innerText || '50 km';
-                    const scaleW = Math.round((scaleEl.offsetWidth || 80) * scale);
-                    const scaleH = Math.round(12 * (scale / 2));
-                    const sX = Math.round(20 * scale);
-                    const sY = Math.round((mapHeight - 35) * scale);
+                    const scaleW = Math.round((scaleEl.offsetWidth || 85) * scale * 1.25);
+                    const scaleH = Math.round(14 * scale);
+                    const sX = Math.round(24 * scale);
+                    const sY = Math.round((mapHeight - 48) * scale);
 
                     ctx.save();
                     ctx.fillStyle = '#ffffff';
@@ -1605,14 +1646,14 @@
                     ctx.fillStyle = '#000000';
                     ctx.fillRect(sX, sY, scaleW / 2, scaleH);
                     ctx.strokeStyle = '#222222';
-                    ctx.lineWidth = 1 * (scale / 2);
+                    ctx.lineWidth = Math.round(1.5 * scale);
                     ctx.strokeRect(sX, sY, scaleW, scaleH);
 
                     ctx.fillStyle = '#000000';
-                    ctx.font = `bold ${Math.round(10 * (scale / 2))}px 'Inter', Arial, sans-serif`;
+                    ctx.font = `bold ${Math.round(13 * scale)}px 'Inter', Arial, sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
-                    ctx.fillText(scaleText, sX + scaleW / 2, sY - Math.round(4 * (scale / 2)));
+                    ctx.fillText(scaleText, sX + scaleW / 2, sY - Math.round(6 * scale));
                     ctx.restore();
                 }
 
@@ -1657,7 +1698,7 @@
             }
         };
 
-        // Download Vector SVG (Publication Standard)
+        // Download Vector SVG (Publication Standard with High-Legibility Typography)
         document.getElementById('btn-download-svg').onclick = () => {
             const btn = document.getElementById('btn-download-svg');
             const originalHtml = btn.innerHTML;
@@ -1668,6 +1709,18 @@
                 const mapEl = document.getElementById('map');
                 const width = mapEl.clientWidth || 1000;
                 const height = mapEl.clientHeight || 700;
+
+                // Sizing multiplier from modal setting
+                const sizeSetting = document.getElementById('select-label-size') ? document.getElementById('select-label-size').value : 'large';
+                let svgFontPt = 14;
+                let svgSymbolR = 14;
+                if (sizeSetting === 'xlarge') {
+                    svgFontPt = 18;
+                    svgSymbolR = 18;
+                } else if (sizeSetting === 'medium') {
+                    svgFontPt = 11;
+                    svgSymbolR = 11;
+                }
 
                 // Collect Leaflet Vector Overlays with exact positioning
                 const leafletSvg = document.querySelector('#map .leaflet-overlay-pane svg');
@@ -1700,9 +1753,9 @@
                     const mapRect = mapEl.getBoundingClientRect();
                     const insetX = Math.round(insetRect.left - mapRect.left);
                     const insetY = Math.round(insetRect.top - mapRect.top);
-                    const inW = Math.round(insetRect.width);
-                    const inH = Math.round(insetRect.height);
-                    const headerH = 22;
+                    const inW = Math.round(insetRect.width * 1.15);
+                    const inH = Math.round(insetRect.height * 1.15);
+                    const headerH = 26;
 
                     let inSvgMarkup = '';
                     if (insetSvg) {
@@ -1725,12 +1778,12 @@
 
                     insetMarkup = `
                         <g id="inset-map-group" transform="translate(${insetX}, ${insetY})">
-                            <rect width="${inW}" height="${inH}" fill="#e8f0f8" stroke="#333333" stroke-width="1.5" rx="6"/>
+                            <rect width="${inW}" height="${inH}" fill="#e8f0f8" stroke="#333333" stroke-width="1.8" rx="8"/>
                             ${inSvgMarkup}
-                            <rect width="${inW}" height="${headerH}" fill="#ffffff" fill-opacity="0.95" rx="6 6 0 0"/>
-                            <line x1="0" y1="${headerH}" x2="${inW}" y2="${headerH}" stroke="#cccccc" stroke-width="1"/>
-                            <text x="${inW / 2}" y="15" font-family="'Inter', Arial, sans-serif" font-size="10" font-weight="bold" fill="#1a1a1a" text-anchor="middle">INDIA</text>
-                            <rect width="${inW}" height="${inH}" fill="none" stroke="#222222" stroke-width="1.5" rx="6"/>
+                            <rect width="${inW}" height="${headerH}" fill="#ffffff" fill-opacity="0.96" rx="8 8 0 0"/>
+                            <line x1="0" y1="${headerH}" x2="${inW}" y2="${headerH}" stroke="#333333" stroke-width="1.2"/>
+                            <text x="${inW / 2}" y="${headerH / 2 + 5}" font-family="'Inter', Arial, sans-serif" font-size="13" font-weight="bold" fill="#111827" text-anchor="middle">INDIA</text>
+                            <rect width="${inW}" height="${inH}" fill="none" stroke="#222222" stroke-width="2" rx="8"/>
                         </g>
                     `;
                 }
@@ -1743,25 +1796,27 @@
                             const pt = map.latLngToContainerPoint([spec.lat, spec.lon]);
                             if (pt.x >= -50 && pt.x <= width + 50 && pt.y >= -50 && pt.y <= height + 50) {
                                 let symbolSvg = '';
+                                const r = svgSymbolR;
                                 if (taxon.symbol === 'star') {
-                                    symbolSvg = `<polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                    symbolSvg = `<polygon points="16,3 20,12 29,12 22,18 25,27 16,22 7,27 10,18 3,12 12,12" fill="${taxon.color}" stroke="#000000" stroke-width="1.8" transform="translate(${Math.round(pt.x) - 16}, ${Math.round(pt.y) - 16})"/>`;
                                 } else if (taxon.symbol === 'triangle') {
-                                    symbolSvg = `<polygon points="12,3 22,21 2,21" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                    symbolSvg = `<polygon points="16,3 29,27 3,27" fill="${taxon.color}" stroke="#000000" stroke-width="1.8" transform="translate(${Math.round(pt.x) - 16}, ${Math.round(pt.y) - 16})"/>`;
                                 } else if (taxon.symbol === 'square') {
-                                    symbolSvg = `<rect x="${Math.round(pt.x) - 9}" y="${Math.round(pt.y) - 9}" width="18" height="18" fill="${taxon.color}" stroke="#000000" stroke-width="1.5"/>`;
+                                    symbolSvg = `<rect x="${Math.round(pt.x) - r * 0.85}" y="${Math.round(pt.y) - r * 0.85}" width="${r * 1.7}" height="${r * 1.7}" fill="${taxon.color}" stroke="#000000" stroke-width="1.8"/>`;
                                 } else if (taxon.symbol === 'diamond') {
-                                    symbolSvg = `<polygon points="12,2 22,12 12,22 2,12" fill="${taxon.color}" stroke="#000000" stroke-width="1.5" transform="translate(${Math.round(pt.x) - 12}, ${Math.round(pt.y) - 12})"/>`;
+                                    symbolSvg = `<polygon points="16,3 29,16 16,29 3,16" fill="${taxon.color}" stroke="#000000" stroke-width="1.8" transform="translate(${Math.round(pt.x) - 16}, ${Math.round(pt.y) - 16})"/>`;
                                 } else {
-                                    symbolSvg = `<circle cx="${Math.round(pt.x)}" cy="${Math.round(pt.y)}" r="8" fill="${taxon.color}" stroke="#000000" stroke-width="1.5"/>`;
+                                    symbolSvg = `<circle cx="${Math.round(pt.x)}" cy="${Math.round(pt.y)}" r="${r}" fill="${taxon.color}" stroke="#000000" stroke-width="1.8"/>`;
                                 }
 
                                 const labelText = `${taxon.name}: ${spec.label} (${spec.status})`;
-                                const boxWidth = Math.round(labelText.length * 6.5 + 12);
+                                const boxWidth = Math.round(labelText.length * (svgFontPt * 0.62) + 24);
+                                const boxHeight = svgFontPt + 14;
                                 const labelSvg = `
                                     <g id="marker-${spec.id}">
                                         ${symbolSvg}
-                                        <rect x="${Math.round(pt.x) + 14}" y="${Math.round(pt.y) - 11}" width="${boxWidth}" height="18" fill="#ffffff" fill-opacity="0.94" stroke="#444444" stroke-width="0.8" rx="3"/>
-                                        <text x="${Math.round(pt.x) + 19}" y="${Math.round(pt.y) + 2}" font-family="'Inter', Arial, sans-serif" font-size="9.5" font-weight="600" fill="#222222">${labelText}</text>
+                                        <rect x="${Math.round(pt.x) + r + 6}" y="${Math.round(pt.y) - boxHeight / 2}" width="${boxWidth}" height="${boxHeight}" fill="#ffffff" fill-opacity="0.96" stroke="#333333" stroke-width="1.2" rx="4"/>
+                                        <text x="${Math.round(pt.x) + r + 16}" y="${Math.round(pt.y) + svgFontPt * 0.35}" font-family="'Inter', Arial, sans-serif" font-size="${svgFontPt}" font-weight="bold" fill="#111827">${labelText}</text>
                                     </g>
                                 `;
                                 markersMarkup += labelSvg;
@@ -1776,12 +1831,12 @@
                 const scaleEl = document.querySelector('.leaflet-control-scale-line');
                 if (scaleEl) {
                     const scaleText = scaleEl.innerText || '50 km';
-                    const scaleWidth = scaleEl.offsetWidth || 80;
+                    const scaleWidth = Math.round((scaleEl.offsetWidth || 85) * 1.25);
                     scaleMarkup = `
-                        <g id="scale-bar" transform="translate(20, ${height - 35})">
-                            <rect width="${scaleWidth}" height="14" fill="#ffffff" fill-opacity="0.9" stroke="#333333" stroke-width="0.8"/>
-                            <rect x="0" y="0" width="${scaleWidth / 2}" height="14" fill="#000000"/>
-                            <text x="${scaleWidth / 2}" y="-4" font-family="'Inter', Arial, sans-serif" font-size="9" font-weight="bold" fill="#000000" text-anchor="middle">${scaleText}</text>
+                        <g id="scale-bar" transform="translate(24, ${height - 40})">
+                            <rect width="${scaleWidth}" height="16" fill="#ffffff" fill-opacity="0.95" stroke="#222222" stroke-width="1.2"/>
+                            <rect x="0" y="0" width="${scaleWidth / 2}" height="16" fill="#000000"/>
+                            <text x="${scaleWidth / 2}" y="-6" font-family="'Inter', Arial, sans-serif" font-size="13" font-weight="bold" fill="#000000" text-anchor="middle">${scaleText}</text>
                         </g>
                     `;
                 }
@@ -1814,7 +1869,7 @@
     ${scaleMarkup}
     
     <!-- Outer Neatline -->
-    <rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="#222222" stroke-width="2"/>
+    <rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="#222222" stroke-width="2.5"/>
 </svg>`;
 
                 const blob = new Blob([fullSvg], { type: 'image/svg+xml;charset=utf-8' });
