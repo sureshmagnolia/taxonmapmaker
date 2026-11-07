@@ -485,6 +485,61 @@
             border-right-color: #333333 !important;
         }
 
+    
+        /* Collapsible Sidebar & Floating Map Toolbar */
+        #sidebar.collapsed {
+            display: none !important;
+        }
+
+        #btn-collapse-sidebar {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: #ffffff;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #btn-collapse-sidebar:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        #map-floating-toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .map-tool-btn {
+            background: #ffffff;
+            color: #1f2937;
+            border: 1.5px solid #d1d5db;
+            border-radius: 6px;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            transition: all 0.2s ease;
+        }
+        .map-tool-btn:hover {
+            background: #f8fafc;
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+        }
+
     </style>
 </head>
 <body>
@@ -496,7 +551,10 @@
                 <h1><i class="fa-solid fa-leaf"></i> TaxonMap Pro</h1>
                 <p>Publication Studio for Indian Taxonomy</p>
             </div>
-            <span class="badge-soi">SOI COMPLIANT</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge-soi">SOI COMPLIANT</span>
+                <button id="btn-collapse-sidebar" title="Collapse Sidebar (Expand Map View)"><i class="fa-solid fa-chevron-left"></i></button>
+            </div>
         </div>
 
         <div class="sidebar-content">
@@ -633,6 +691,16 @@
         <!-- Interactive Leaflet Map -->
         <div id="map"></div>
 
+        <!-- Floating Quick Map Tools (Fit Peninsula & Sidebar Toggle) -->
+        <div id="map-floating-toolbar">
+            <button class="map-tool-btn" id="btn-expand-sidebar" style="display: none;">
+                <i class="fa-solid fa-bars"></i> Show Sidebar
+            </button>
+            <button class="map-tool-btn" id="btn-fit-coasts" title="Fit both Arabian Sea & Bay of Bengal coasts in view">
+                <i class="fa-solid fa-arrows-left-right"></i> Fit Coasts (Show Full Peninsula)
+            </button>
+        </div>
+
         <!-- Crosshair Banner when in "Pick on Map" mode -->
         <div id="pick-banner">
             <i class="fa-solid fa-crosshairs fa-spin"></i>
@@ -701,7 +769,14 @@
                     </div>
                     <div class="row-2" style="gap: 10px;">
                         <div>
-                            <label class="form-label" style="font-size: 0.74rem;">Wrapping & Layout</label>
+                                                <div class="form-group" style="margin-bottom: 8px;">
+                        <label class="form-label" style="font-size: 0.74rem;">Export Framing & Sides</label>
+                        <select class="form-control" id="modal-select-coverage" style="font-size: 0.8rem; padding: 5px 8px;">
+                            <option value="coasts" selected>Include Both Coasts & Seas (Arabian Sea + Bay of Bengal)</option>
+                            <option value="viewport">Current Viewport Only</option>
+                        </select>
+                    </div>
+                        <label class="form-label" style="font-size: 0.74rem;">Wrapping & Layout</label>
                             <select class="form-control" id="modal-select-format" style="font-size: 0.8rem; padding: 5px 8px;">
                                 <option value="stacked" selected>Stacked Multi-Line (Compact Card)</option>
                                 <option value="locality_status">Locality & Status Only (Clean)</option>
@@ -772,8 +847,10 @@
 
         // Initialize Main Map
         const map = L.map('map', {
-            center: [11.55, 77.45],
-            zoom: 8,
+            center: [11.50, 77.45],
+            zoom: 7.4,
+            zoomSnap: 0.2,
+            zoomDelta: 0.5,
             zoomControl: false,
             attributionControl: false
         });
@@ -1481,9 +1558,22 @@
             btn.disabled = true;
 
             try {
+                // Check if user requested coastal framing (Arabian Sea to Bay of Bengal)
+                const coverageMode = document.getElementById('modal-select-coverage') ? document.getElementById('modal-select-coverage').value : 'coasts';
+                
+                // If coastal framing is requested, ensure map view captures both coasts comfortably
+                if (coverageMode === 'coasts') {
+                    // Peninsular coastal bounds: 74.6°E (Arabian Sea) to 80.4°E (Bay of Bengal)
+                    const coastalBounds = L.latLngBounds([[9.9, 74.6], [13.1, 80.4]]);
+                    if (!map.getBounds().contains(coastalBounds)) {
+                        map.fitBounds(coastalBounds, { padding: [20, 20], animate: false });
+                        await new Promise(r => setTimeout(r, 150));
+                    }
+                }
+
                 const mapEl = document.getElementById('map');
-                const mapWidth = mapEl.clientWidth || 1000;
-                const mapHeight = mapEl.clientHeight || 700;
+                const mapWidth = mapEl.clientWidth || 1100;
+                const mapHeight = mapEl.clientHeight || 750;
                 const scale = 3; // 300 DPI (~3x resolution)
 
                 // Typography scaling multiplier
@@ -1507,18 +1597,19 @@
                 canvas.height = Math.round(mapHeight * scale);
                 const ctx = canvas.getContext('2d');
 
-                // 1. Oceanic Background Fill
+                // 1. Oceanic Background Fill (Ensures sea on sides is never empty)
                 ctx.fillStyle = '#dbeaf8';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // 2. Basemap Tiles (Slippy Map Mathematical Grid)
+                // 2. Basemap Tiles (Slippy Map Mathematical Grid with Extra Edge Buffer)
                 const bounds = map.getPixelBounds();
                 const tileSize = 256;
                 const zoom = map.getZoom();
-                const minX = Math.floor(bounds.min.x / tileSize);
-                const maxX = Math.floor(bounds.max.x / tileSize);
-                const minY = Math.floor(bounds.min.y / tileSize);
-                const maxY = Math.floor(bounds.max.y / tileSize);
+                // Include 1 extra tile buffer on left, right, top, bottom so sides are never cropped
+                const minX = Math.floor(bounds.min.x / tileSize) - 1;
+                const maxX = Math.ceil(bounds.max.x / tileSize) + 1;
+                const minY = Math.floor(bounds.min.y / tileSize) - 1;
+                const maxY = Math.ceil(bounds.max.y / tileSize) + 1;
 
                 const tilePromises = [];
                 for (let x = minX; x <= maxX; x++) {
@@ -1666,7 +1757,12 @@
 
                                     const boxW = Math.round(maxTextWidth + padX * 2);
                                     const boxH = Math.round(lines.length * lineHeight + padY * 2);
-                                    const boxX = mx + r + Math.round(10 * scale);
+                                    
+                                    // Keep badge within map bounds if near right edge
+                                    let boxX = mx + r + Math.round(10 * scale);
+                                    if (boxX + boxW > canvas.width - Math.round(20 * scale)) {
+                                        boxX = mx - r - boxW - Math.round(10 * scale);
+                                    }
                                     const boxY = my - boxH / 2;
 
                                     // Drop shadow for card
@@ -1690,8 +1786,13 @@
                                     ctx.strokeStyle = '#222222';
                                     ctx.lineWidth = Math.max(1.5, Math.round(1.2 * scale));
                                     ctx.beginPath();
-                                    ctx.moveTo(mx + r, my);
-                                    ctx.lineTo(boxX, my);
+                                    if (boxX > mx) {
+                                        ctx.moveTo(mx + r, my);
+                                        ctx.lineTo(boxX, my);
+                                    } else {
+                                        ctx.moveTo(mx - r, my);
+                                        ctx.lineTo(boxX + boxW, my);
+                                    }
                                     ctx.stroke();
 
                                     // Render Wrapped Lines
@@ -1717,7 +1818,7 @@
                     });
                 });
 
-                // 5. Survey of India National Inset Map with Clear Typography
+                // 5. Survey of India National Inset Map
                 const insetContainer = document.getElementById('inset-map-container');
                 if (insetContainer && insetContainer.style.display !== 'none') {
                     const mapRect = mapEl.getBoundingClientRect();
@@ -1751,10 +1852,10 @@
 
                     // Draw Inset Map Tiles
                     const inBounds = insetMap.getPixelBounds();
-                    const inMinX = Math.floor(inBounds.min.x / 256);
-                    const inMaxX = Math.floor(inBounds.max.x / 256);
-                    const inMinY = Math.floor(inBounds.min.y / 256);
-                    const inMaxY = Math.floor(inBounds.max.y / 256);
+                    const inMinX = Math.floor(inBounds.min.x / 256) - 1;
+                    const inMaxX = Math.ceil(inBounds.max.x / 256) + 1;
+                    const inMinY = Math.floor(inBounds.min.y / 256) - 1;
+                    const inMaxY = Math.ceil(inBounds.max.y / 256) + 1;
                     const inZoom = insetMap.getZoom();
 
                     const inTilePromises = [];
@@ -1783,7 +1884,7 @@
                         if (t && t.img) ctx.drawImage(t.img, t.x, t.y, t.w, t.h);
                     });
 
-                    // Draw Inset Vector SVG (SOI Boundary & Study Area Rectangle)
+                    // Draw Inset Vector SVG (SOI Boundary & Focusing Rectangle)
                     const insetSvg = document.querySelector('#inset-map .leaflet-overlay-pane svg');
                     if (insetSvg) {
                         const inViewBoxStr = insetSvg.getAttribute('viewBox');
@@ -1824,7 +1925,7 @@
                         });
                     }
 
-                    // Inset Header Bar: "INDIA" (Bold, Prominent 14pt Publication Font)
+                    // Inset Header Bar: "INDIA"
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(inX, inY, inW, headerH);
                     ctx.strokeStyle = '#333333';
@@ -1851,7 +1952,7 @@
                     ctx.restore();
                 }
 
-                // 6. Elevation Colorbar Overlay (Clear, Crisp Legend)
+                // 6. Elevation Colorbar Overlay
                 const colorbarEl = document.getElementById('elev-colorbar');
                 if (colorbarEl && colorbarEl.style.display !== 'none') {
                     const mapRect = mapEl.getBoundingClientRect();
@@ -1899,7 +2000,7 @@
                     ctx.lineWidth = Math.round(1.2 * scale);
                     ctx.strokeRect(gradX, gradY, gradW, gradH);
 
-                    // Ticks (Bold, clearly legible 11pt publication font)
+                    // Ticks
                     ctx.fillStyle = '#1f2937';
                     ctx.font = `bold ${Math.round(11 * scale)}px 'Inter', Arial, sans-serif`;
                     ctx.textBaseline = 'top';
@@ -1916,7 +2017,7 @@
                     ctx.restore();
                 }
 
-                // 7. Metric Scale Bar (Clear 13pt bold font and high-contrast bar)
+                // 7. Metric Scale Bar
                 const scaleEl = document.querySelector('.leaflet-control-scale-line');
                 if (scaleEl) {
                     const scaleText = scaleEl.innerText || '50 km';
@@ -1942,10 +2043,11 @@
                     ctx.restore();
                 }
 
-                // 8. Outer Neatline Border (Publication Standard)
+                // 8. Outer Neatline Border (Inset by half-stroke so sides are never clipped)
+                const neatlineWidth = Math.round(2.5 * scale);
                 ctx.strokeStyle = '#222222';
-                ctx.lineWidth = Math.round(2.5 * scale);
-                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = neatlineWidth;
+                ctx.strokeRect(neatlineWidth / 2, neatlineWidth / 2, canvas.width - neatlineWidth, canvas.height - neatlineWidth);
 
                 // 9. Download PNG
                 canvas.toBlob((blob) => {
@@ -2165,6 +2267,61 @@
         }
         .taxon-map-callout-tooltip::before {
             border-right-color: #333333 !important;
+        }
+
+    
+        /* Collapsible Sidebar & Floating Map Toolbar */
+        #sidebar.collapsed {
+            display: none !important;
+        }
+
+        #btn-collapse-sidebar {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: #ffffff;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #btn-collapse-sidebar:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        #map-floating-toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .map-tool-btn {
+            background: #ffffff;
+            color: #1f2937;
+            border: 1.5px solid #d1d5db;
+            border-radius: 6px;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            transition: all 0.2s ease;
+        }
+        .map-tool-btn:hover {
+            background: #f8fafc;
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
         }
 
     </style>
